@@ -1,3 +1,4 @@
+const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
 var gamedata = undefined;
 var screensize=[240,320]
 var save={}
@@ -350,7 +351,20 @@ function change_script(filename)
     } 
 
 }
-
+var iswait = false;
+function waitkey()
+{
+    iswait=true;
+    return new Promise((r,v)=>{
+        var inval = setInterval(()=>{
+            if(iswait==false)
+            {
+                clearInterval(inval);
+                r();
+            }
+        },100);
+    });
+}
 function split_parameter(str,command)
 {
     args=str.substring(command.length).split(',')
@@ -376,6 +390,67 @@ function del_blank(data)
 {
     return data.trim()
 }
+
+function delay_until(end_time)
+{
+    return;
+}
+
+function  draw_chara()
+{ 
+    if(chara_on)
+    {
+        final_img.blit(staticimg['chara_img'],[0,0])
+    }else{
+        final_img.blit(staticimg['bg_img'],[0,0])
+    }  
+}  
+function message_before(name=None)
+{
+    //prepare the underlying img
+    draw_chara()
+    draw_image(staticimg['messagebox'],img_mask=staticimg['messagebox_mask'],img_origin=[0,screensize[1]-get_image_height(staticimg['messagebox'])],on_canvas=False)
+    if(name==None)
+    {
+        save['name']=''
+    }
+    else {
+        save['name']=name
+        
+    }
+
+}
+function message_after()
+{
+
+}
+
+function draw_onebyone()
+{
+
+}
+function display_cursor()
+{
+
+}
+
+function message(charlist,name=None)
+{
+    if(charlist=='')
+    {
+        return;
+    }
+    var consttextorigin=[gameconfig['msglr'][0],screensize[1]-get_image_height(staticimg['messagebox'])+gameconfig['msgtb'][0]]
+    var constbottomright=[screensize[0]-gameconfig['msglr'][1],screensize[1]-gameconfig['msgtb'][1]]
+
+    message_before(name)
+
+    textorigin=draw_onebyone(charlist, consttextorigin, constbottomright, gameconfig['textcolor'], name)
+        display_cursor(textorigin,True)
+
+    message_after(charlist,name)
+}
+
 //执行pymo脚本
 async function ScriptParsePYMO()
 {
@@ -424,7 +499,40 @@ async function ScriptParsePYMO()
             CHASetInvisible('a')
             continue
         }
-              
+
+         //waitkey
+         if (command.startsWith('#waitkey'))
+         {
+            await waitkey()
+            continue
+         } 
+         
+         if (command.startsWith('#wait '))
+         {
+            args=split_parameter(command,'#wait ')
+            await sleep(parseFloat(args[0]))
+            continue 
+         }
+
+         if (command.startsWith('#waittime '))
+         {
+            args=split_parameter(command,'#waittime ')
+            await delay_until(parseInt(args[0]))
+            continue 
+         } 
+
+         if (command.startsWith('#say '))
+         {
+            args=split_parameter(command,'#say ')
+            if (len(args)==1)
+            {
+                message(args[0])
+            }else{
+                message(args[1],name=args[0])
+            }  
+            continue
+         } 
+
 
 
         // }catch(err)
@@ -612,6 +720,9 @@ async function loadgame(){
         staticimg['paragraph_img']=new Image(screensize[0],screensize[1]) 
         staticimg['paragraph_img_mask']=new Image(screensize[0],screensize[1]) 
 
+        var msgbox='message'
+        staticimg['messagebox']=load_image('system/'+msgbox+'.png')
+
         chara={}
         cache={'bg':{},'chara':{},'vo':{},'bgm':{},'sel':None}
          cache_pos=0
@@ -677,3 +788,14 @@ async function loadgame(){
 window.addEventListener("load", () => { 
     loadgame();
 })
+
+
+function handleKeydown(e) { 
+    switch (e.key) { 
+        case "ArrowDown":
+            iswait=false;
+            break; 
+    }
+}
+
+window.addEventListener('keydown', handleKeydown);
