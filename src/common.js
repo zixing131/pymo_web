@@ -1,20 +1,24 @@
 function BinReader(data)
 {
     this.pos=0;
-    this.data=data;
-    that = this;
+    this.data=data; 
     this.read = function(len)
     {
-        var ret = that.data.slice(that.pos,that.pos+len);
+        var ret = this.data.slice(this.pos,this.pos+len);
         this.pos+=len;
         return ret;
     }
     this.readInt= function()
     {
-        var ret = that.read(4); 
+        var ret = this.read(4); 
         var retint  = 0; 
         retint = (ret[3]<<24) +(ret[2]<<16) +(ret[1]<<8) + (ret[0]); 
         return retint;
+    }
+    this.readAt=function(start,length)
+    {
+        var dt = this.data.slice(start,start+length);
+        return dt;
     }
     return this;
 }
