@@ -786,15 +786,14 @@ var initFS = (new Promise(function(resolve, reject) {
   });
 })
 
-var ZIPStore = function() {
-  var DATABASE = "ZIPStore";
+var ZipStore = function() {
+  var DATABASE = "ZipStore";
   var VERSION = 2;
   var OBJECT_STORE_OLD = "files";
   var OBJECT_STORE_WITH_UNCOMPRESSED_LEN = "files_v2";
-  var KEY_PATH = "jarName";
+  var KEY_PATH = "ZipName";
   var database;
-  var jars = new Map;
-  var jad;
+  var Zips = new Map; 
   var upgrade = {"0to1":function(database, transaction, next) {
     database.createObjectStore(OBJECT_STORE_OLD, {keyPath:KEY_PATH});
     next();
@@ -825,9 +824,9 @@ var ZIPStore = function() {
     };
   });
 
-  function getjars()
+  function getZips()
   {
-    return jars;
+    return Zips;
   }
 
   function getAll() {
@@ -837,7 +836,7 @@ var ZIPStore = function() {
         var objectStore = transaction.objectStore(OBJECT_STORE_WITH_UNCOMPRESSED_LEN);
         var request = objectStore.getAll();
         request.onerror = function() {
-          console.error("Error loading " + jarName + ": " + request.error.name);
+          console.error("Error loading " + ZipName + ": " + request.error.name);
           reject(request.error.name);
         };
         transaction.oncomplete = function() {
@@ -851,18 +850,18 @@ var ZIPStore = function() {
     });
   }
 
-  function addBuiltIn(jarName, jarData) {
-    var zip = new ZipFile(jarData, false);
-    jars.set(jarName, {directory:zip.directory, isBuiltIn:true});
+  function addBuiltIn(ZipName, ZipData) {
+    var zip = new ZipFile(ZipData, false);
+    Zips.set(ZipName, {directory:zip.directory, isBuiltIn:true});
   }
 
-  function deleteJar(jarName)
+  function deleteZip(ZipName)
   {
     return openDatabase.then(function() {
       return new Promise(function(resolve, reject) { 
         var transaction = database.transaction(OBJECT_STORE_WITH_UNCOMPRESSED_LEN, "readwrite");
         var objectStore = transaction.objectStore(OBJECT_STORE_WITH_UNCOMPRESSED_LEN);
-        var request = objectStore.delete(jarName);
+        var request = objectStore.delete(ZipName);
         request.onerror = function() { 
           reject(request.error.name);
         };
@@ -873,41 +872,41 @@ var ZIPStore = function() {
     });
   }
 
-  function installJAR(jarName, jarData, jadData) {
+  
+  function installGame(ZipName, ZipData) {
     return openDatabase.then(function() {
       return new Promise(function(resolve, reject) {
-        var zip = new ZipFile(jarData, true); 
+        var zip = new ZipFile(ZipData, true); 
         var transaction = database.transaction(OBJECT_STORE_WITH_UNCOMPRESSED_LEN, "readwrite");
         var objectStore = transaction.objectStore(OBJECT_STORE_WITH_UNCOMPRESSED_LEN);
-        var request = objectStore.put({jarName:jarName, jar:zip.directory, jad:jadData || null});
+        var request = objectStore.put({ZipName:ZipName, Zip:zip.directory});
         request.onerror = function() {
-          console.error("Error installing " + jarName + ": " + request.error.name);
+          console.error("Error installing " + ZipName + ": " + request.error.name);
           reject(request.error.name);
         };
         transaction.oncomplete = function() {
-          jars.set(jarName, {directory:zip.directory, isBuiltIn:false});
-          jad = jadData;
+          Zips.set(ZipName, {directory:zip.directory, isBuiltIn:false});
+          
           resolve();
         };
       });
     });
   }
-  function loadJAR(jarName) {
+ 
+  function loadZip(ZipName) {
     return openDatabase.then(function() {
       return new Promise(function(resolve, reject) {
         var transaction = database.transaction(OBJECT_STORE_WITH_UNCOMPRESSED_LEN, "readonly");
         var objectStore = transaction.objectStore(OBJECT_STORE_WITH_UNCOMPRESSED_LEN);
-        var request = objectStore.get(jarName);
+        var request = objectStore.get(ZipName);
         request.onerror = function() {
-          console.error("Error loading " + jarName + ": " + request.error.name);
+          console.error("Error loading " + ZipName + ": " + request.error.name);
           reject(request.error.name);
         };
         transaction.oncomplete = function() {
           if (request.result) {
-            jars.set(jarName, {directory:request.result.jar, isBuiltIn:false});
-            if (request.result.jad) {
-              jad = request.result.jad;
-            }
+            Zips.set(ZipName, {directory:request.result.Zip, isBuiltIn:false});
+             
             resolve(request.result);
           } else {
             resolve(false);
@@ -916,12 +915,12 @@ var ZIPStore = function() {
       });
     });
   }
-  function loadFileFromJAR(jarName, fileName) {
-    var jar = jars.get(jarName);
-    if (!jar) {
+  function loadFileFromZip(ZipName, fileName) {
+    var Zip = Zips.get(ZipName);
+    if (!Zip) {
       return null;
     }
-    var entry = jar.directory[fileName];
+    var entry = Zip.directory[fileName];
     if (!entry) {
       return null;
     }
@@ -935,26 +934,23 @@ var ZIPStore = function() {
         return null;
       }
     }
-    if (!jar.isBuiltIn && fileName.endsWith(".class")) {
-      delete jar.directory[fileName];
+    if (!Zip.isBuiltIn && fileName.endsWith(".class")) {
+      delete Zip.directory[fileName];
     }
     return bytes;
   }
   function loadFile(fileName) {
-    for (var jarName of jars.keys()) {
-      var data = loadFileFromJAR(jarName, fileName);
+    for (var ZipName of Zips.keys()) {
+      var data = loadFileFromZip(ZipName, fileName);
       if (data) {
         return data;
       }
     }
-  }
-  function getJAD() {
-    return jad;
-  }
+  } 
   function clear() {
     return openDatabase.then(function() {
       return new Promise(function(resolve, reject) {
-        jars.clear();
+        Zips.clear();
         var transaction = database.transaction(OBJECT_STORE_WITH_UNCOMPRESSED_LEN, "readwrite");
         var objectStore = transaction.objectStore(OBJECT_STORE_WITH_UNCOMPRESSED_LEN);
         var request = objectStore.clear();
@@ -978,5 +974,5 @@ var ZIPStore = function() {
       };
     });
   }
-  return {deleteJar:deleteJar,getjars:getjars,getAll:getAll,addBuiltIn:addBuiltIn, installJAR:installJAR, loadJAR:loadJAR, loadFileFromJAR:loadFileFromJAR, loadFile:loadFile, getJAD:getJAD, clear:clear, deleteDatabase:deleteDatabase};
+  return {installGame:installGame,deleteZip:deleteZip,getZips:getZips,getAll:getAll,addBuiltIn:addBuiltIn,   loadZip:loadZip, loadFileFromZip:loadFileFromZip, loadFile:loadFile,  clear:clear, deleteDatabase:deleteDatabase};
 }();

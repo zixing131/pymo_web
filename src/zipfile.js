@@ -190,8 +190,32 @@ function inflate(bytes, uncompressed_len) {
   }
   return buffer;
 }
-var arrays = J2ME.ArrayUtilities.makeArrays(256);
+function makeArrays(length) {
+  var arrays = [];
+  for (var i = 0; i < length; i++) {
+      arrays.push(new Array(i));
+  }
+  return arrays;
+}
+var arrays = makeArrays(256);
 function ZipFile(buffer, extract) {
+  // this.read=function(filename) {
+  //   if (!this.directory) {
+  //     return null;
+  //   }
+  //   var entry = this.directory[filename];
+  //   if (!entry) {
+  //     return null;
+  //   }
+  //   var data = entry.compressed_data;
+  //   switch(entry.compression_method) {
+  //     case 0:
+  //       return data;
+  //     case 8:
+  //       return inflate(data, entry.uncompressed_len);
+  //   }
+  //   return null;
+  // }
   var bytes = new Uint8Array(buffer);
   var view = new DataView(buffer);
   if (view.getInt32(0, true) != 67324752) {
@@ -227,13 +251,13 @@ function ZipFile(buffer, extract) {
     var local_header_offset = view.getInt32(pos + 42, true);
     pos += 46;
     if (arrays.length < filename_len) {
-      arrays = J2ME.ArrayUtilities.makeArrays(filename_len);
+      arrays = makeArrays(filename_len);
     }
     var array = arrays[filename_len];
     for (var n = 0;n < filename_len;++n) {
-      array[n] = String.fromCharCode(bytes[pos++]);
-    }
-    var filename = array.join("");
+      array[n] = bytes[pos++];
+    } 
+    var filename=new TextDecoder('utf-8').decode(new Uint8Array(array));
     var local_extra_len = view.getInt16(local_header_offset + 28, true);
     var data_offset = local_header_offset + 30 + filename_len + local_extra_len;
     var compressed_data;
@@ -244,26 +268,16 @@ function ZipFile(buffer, extract) {
     } else {
       compressed_data = data;
     }
+
+    if(compression_method==8)
+    {
+      compressed_data=inflate(data, uncompressed_len);
+      compression_method=0;
+    }
     directory[filename] = {compression_method:compression_method, compressed_data:compressed_data, uncompressed_len:uncompressed_len};
     pos += extra_len + comment_len;
   }
   this.directory = directory;
+
 }
-ZipFile.prototype = {read:function(filename) {
-  if (!this.directory) {
-    return null;
-  }
-  var entry = this.directory[filename];
-  if (!entry) {
-    return null;
-  }
-  var data = entry.compressed_data;
-  switch(entry.compression_method) {
-    case 0:
-      return data;
-    case 8:
-      return inflate(data, entry.uncompressed_len);
-  }
-  return null;
-}};
 

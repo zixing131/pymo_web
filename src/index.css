@@ -100,6 +100,8 @@
     font-size: 16px;
     color: #000;
     padding: 12px;
+    display:flex;
+    align-items:center;
 }
 
 .listitem.focus{
@@ -107,14 +109,13 @@
     color: #cd3d3d;
 }
 
-.jaricon{
-	position: absolute;
+.gameicon{ 
+	 position: absolute;
 	 width:32px;
 	 height: 32px; 
 } 
-.listtext{
-	padding: 0px 0px 0px 42px;
-	
+.listtext{ 
+	padding: 0px 0px 0px 46px; 
 }
 
 .menuitem.focus{

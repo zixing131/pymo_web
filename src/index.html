@@ -1,15 +1,31 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1">
 <title>pymo-web</title>
 <link rel="stylesheet" href="./index.css">
 </head>
 <body>
-	<input id="zipFileupload" type="file" style="visibility: hidden;display:none;" accept=".zip"/>
+	<input id="gameFileupload" type="file" style="visibility: hidden;display:none;" accept=".zip"/>
 	
 	 <div id="applist">
 	    
 	</div>
+	<div id="menu" style="display: none;">
+        <div  id="menucontent">
+          <div id="menuheader">
+            菜单
+          </div>
+          
+         <div id="menuitems">
+          <div class="menuitem" focusable>关于</div>
+
+          <div  class="menuitem"  focusable>退出</div>
+
+        </div>
+        </div>
+    </div>
 	 <div id="alertDialog" style="display: none;">
 	   <div  id="alertcontent">
 		 <div id="alertheader">
