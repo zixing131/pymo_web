@@ -1,6 +1,6 @@
 const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
 var gamedata = undefined;
-var screensize=[240,320]
+var screensize=[320,240]
 var save={}
 var cache={} 
 var cache={'bg':{},'chara':{},'vo':{},'bgm':{},'sel':None}
@@ -20,12 +20,96 @@ var sepakfile
 var seindex  
 var vopakfile 
 var voindex  
+var textfont=20
 var gameconfig,running, bgsize, in_fade_out,final_img;
 var final_img, canvas, rendermode, screensize, anime
+var key_codes={
+    EScancode1:1
+}
+/**
+	@private
+	@name applyCanvasMask
+	@function
+	@description Use Canvas to apply an Alpha Mask to an <img>. Preload images first.
+	@param {object} [image] The <img> to apply the mask
+	@param {object} [mask] The <img> containing the PNG-24 mask image
+	@param {int} [width] The width of the image (should be the same as the mask)
+	@param {int} [height] The height of the image (should be the same as the mask)
+	@param {boolean} [asBase64] Option to return the image as Base64
+*/
+function applyCanvasMask(image, mask, width, height, asBase64) {
+	// check we have Canvas, and return the unmasked image if not
+	if (!document.createElement('canvas').getContext && !asBase64) {
+		return image;
+	}
+	else if (!document.createElement('canvas').getContext && asBase64) {
+		return image.src;
+	}
+	
+	var bufferCanvas = document.createElement('canvas'),
+		buffer = bufferCanvas.getContext('2d'),
+		outputCanvas = document.createElement('canvas'),
+		output = outputCanvas.getContext('2d'),
+		
+		contents = null,
+		imageData = null,
+		alphaData = null;
+		
+	// set sizes to ensure all pixels are drawn to Canvas
+	bufferCanvas.width = width;
+	bufferCanvas.height = height * 2;
+	outputCanvas.width = width;
+	outputCanvas.height = height;
+		
+	// draw the base image
+	buffer.drawImage(image, 0, 0);
+	
+	// draw the mask directly below
+	buffer.drawImage(mask, 0, height);
 
-Image.prototype.blit=async function(otherimg,target)
+	// grab the pixel data for base image
+	contents = buffer.getImageData(0, 0, width, height);
+	
+	// store pixel data array seperately so we can manipulate
+	imageData = contents.data;
+	
+	// store mask data
+	alphaData = buffer.getImageData(0, height, width, height).data;
+	
+	// loop through alpha mask and apply alpha values to base image
+	for (var i = 3, len = imageData.length; i < len; i = i + 4) {
+
+		if (imageData[i] > alphaData[i]) {
+			imageData[i] = alphaData[i]
+		}
+			
+	}
+
+	// return the pixel data with alpha values applied
+	if (asBase64) {
+		output.clearRect(0, 0, width, height);
+		output.putImageData(contents, 0, 0);
+		
+		return outputCanvas.toDataURL();
+	}
+	else {
+		return contents;	
+	}
+}
+
+Image.prototype.blit=async function(otherimg,target,source,mask)
 {
-    new Promise((r,v)=>{ 
+    return new Promise((r,v)=>{ 
+        if(mask)
+        {
+            var data = applyCanvasMask(otherimg,mask,otherimg.width, otherimg.height,true)
+            this.onload=function()
+            {
+                r();    
+            }
+            this.src = data;
+            return;
+        }
         var canvas1 = document.createElement('canvas');
         canvas1.width = this.width;
         canvas1.height = this.height;
@@ -38,7 +122,8 @@ Image.prototype.blit=async function(otherimg,target)
         ctx.drawImage(otherimg, target[0], target[1], otherimg.width, otherimg.height);
      
         let b64 = canvas1.toDataURL("image/jpeg", 1.0);
-        this.load=function()
+       
+        this.onload=function()
         {
             r();    
         }
@@ -46,11 +131,85 @@ Image.prototype.blit=async function(otherimg,target)
        
     })
 }
+
+var bytes2hex=(bytes)=>{
+	let hex="",len=bytes.length;
+    for(let i=0;i<len;i++){
+    	let tmp,num=bytes[i];
+        if(num<0){
+        	tmp=(255+num+1).toString(16);
+        }else{
+        	tmp=num.toString(16);
+        }
+        if(tmp.length==1){
+        	return "0"+tmp;
+        }
+        hex+=tmp;
+    }
+    return hex
+} 
 Image.prototype.size=function()
 {
     return [this.width,this.height];
 }
 
+Image.prototype.clear=function(color)
+{
+    return new Promise((r,v)=>{ 
+        var canvas1 = document.createElement('canvas');
+        canvas1.width = this.width;
+        canvas1.height = this.height;
+        var ctx = canvas1.getContext('2d')
+        color = "#"+bytes2hex(color)
+        ctx.fillStyle=color;  
+        ctx.beginPath();  
+        ctx.fillRect(0,0,canvas1.width,canvas1.height);  
+        ctx.closePath();  
+        let b64 = canvas1.toDataURL("image/jpeg", 1.0);
+        this.onload=function()
+        {
+            r();    
+        } 
+        this.onerror=function()
+        {
+            v();    
+        }
+        this.src = b64; 
+    })
+}
+
+Image.prototype.text=function(pos,text,fill,font)
+{
+    return new Promise((r,v)=>{ 
+        var canvas1 = document.createElement('canvas');
+        canvas1.width = this.width;
+        canvas1.height = this.height;
+        var ctx = canvas1.getContext('2d')
+        color = "#"+bytes2hex(fill)
+        ctx.fillStyle=color;
+        ctx.fillText(text,pos[0],pos[1]);        
+        let b64 = canvas1.toDataURL("image/jpeg", 1.0);
+        this.onload=function()
+        {
+            r();    
+        } 
+        this.onerror=function()
+        {
+            v();    
+        }
+        this.src = b64; 
+    })
+}
+var keyboard={
+    is_down:function(scancode)
+    {
+        return false;
+    },
+    pressed:function(scancode)
+    {
+        return true;
+    }
+}
 maincanvas = document.getElementById('maincanvas')
 var mainimg = document.getElementById('mainimg')
 
@@ -58,11 +217,11 @@ canvas={
 
     begin_redraw:function()
     {
-        console.log('canvas.begin_redraw')
+        //console.log('canvas.begin_redraw')
     },
      end_redraw:function()
     {
-        console.log('canvas.end_redraw')
+        //console.log('canvas.end_redraw')
     },
     blit:async function(img,target)
     { new Promise((r,v)=>{ 
@@ -70,11 +229,11 @@ canvas={
         {
             target=[0,0]
         }
-        console.log('canvas.blit')
+        //console.log('canvas.blit')
         var ctx = maincanvas.getContext('2d')
         ctx.drawImage(img,target[0],target[1]) 
         r();
-        // mainimg.load=function(){
+        // mainimg.onload=function(){
         //     r();
         // }
         // mainimg.src=maincanvas.toDataURL("image/jpeg", 1.0);
@@ -236,10 +395,35 @@ else{
     } 
 }
 
-function ALPHA(length, new_img, img_origin=[0,0]){
+async function ALPHA(length, new_img, img_origin=[0,0]){
 
-    draw_image(new_img,img_origin=img_origin)
+    if  (length<20 || in_fade_out){
+        draw_image(new_img,img_origin=img_origin, on_canvas=!in_fade_out)
+        await e32.ao_yield()
+        return
+    }
+    length=parseFloat(length)/1000.0
 
+    var fade_mask=new Image(final_img.size()[0],final_img.size()[1])
+    var oldimg=new Image(final_img.size()[0],final_img.size()[1])
+    oldimg.blit(final_img)
+
+    var start_time=new Date().getTime()/1000
+    var current_time=start_time
+    var i=0
+    while((current_time-start_time)<length)
+    {
+        var level = parseInt(255*(current_time-start_time)/length)
+        await fade_mask.clear([level,level,level])
+        final_img.blit(oldimg)
+        draw_image(new_img,img_mask=fade_mask,img_origin=img_origin)     
+
+        i+=1
+        current_time=new Date().getTime()/1000
+    }
+
+    draw_image(new_img,img_origin=img_origin) 
+    await e32.ao_yield()
 }
 
 async function draw_image(img,img_mask=None,img_origin=[0,0],on_canvas=True, on_final_img=True)
@@ -265,7 +449,7 @@ async function draw_image(img,img_mask=None,img_origin=[0,0],on_canvas=True, on_
     }else{
         if( on_final_img)
         {
-            await  final_img.blit(img, target=img_origin)
+            await  final_img.blit(img, target=img_origin,mask = img_mask)
             if (on_canvas){
                 update_screen()
             } 
@@ -274,12 +458,37 @@ async function draw_image(img,img_mask=None,img_origin=[0,0],on_canvas=True, on_
             {
                 temp_img=new Image(final_img.size())
                 await  temp_img.blit(final_img)
-                await  final_img.blit(img, target=img_origin)
+                await  final_img.blit(img, target=img_origin,mask = img_mask)
                 update_screen()
                 await final_img.blit(temp_img)
             }
         }
     }
+}
+
+async function draw_text(char_list,text_origin=[0,0],color=[255,255,255],on_canvas=True, on_final_img=True)
+{
+    textrect = [char_list.length* parseInt(gameconfig['fontsize']),gameconfig['fontsize']]
+    var  text_mask_img = new Image(textrect[0],textrect[1])
+    await text_mask_img . clear([0,0,0])
+    await text_mask_img.text((0,textrect[1]),char_list,fill=(255,255,255),font=textfont)
+
+    if(on_final_img)
+    {
+        await final_img.blit(text_mask_img, target=text_origin)
+    }
+    if(on_canvas)
+    {
+        if(rendermode==0)
+        {
+            canvas.blit(text_mask_img, target=text_origin)
+        }
+        else{
+            canvas.begin_redraw()
+            canvas.blit(text_mask_img, target=text_origin)
+            canvas.end_redraw()
+        }
+    } 
 }
 
 async function BGDisp(bgindex, transition='BG_NOFADE', speed='BG_NORMAL')
@@ -306,7 +515,7 @@ async function BGDisp(bgindex, transition='BG_NOFADE', speed='BG_NORMAL')
     }
     else if(transition=='BG_ALPHA')
     {
-        ALPHA(length, staticimg['bg'], bgorigin)
+        await ALPHA(length, staticimg['bg'], bgorigin)
     }
     else if(transition=='BG_FADE')
     {
@@ -322,7 +531,7 @@ async function BGDisp(bgindex, transition='BG_NOFADE', speed='BG_NORMAL')
             MASK(length, staticimg['bg'], mask_img, bgorigin)
         }
         else{
-            ALPHA(length, staticimg['bg'], bgorigin)
+            await ALPHA(length, staticimg['bg'], bgorigin)
         }
     }
     await staticimg['bg_img'].blit(final_img,(0,0))
@@ -396,37 +605,89 @@ function delay_until(end_time)
     return;
 }
 
-function  draw_chara()
+async function  draw_chara()
 { 
     if(chara_on)
     {
-        final_img.blit(staticimg['chara_img'],[0,0])
+        await final_img.blit(staticimg['chara_img'],[0,0])
     }else{
-        final_img.blit(staticimg['bg_img'],[0,0])
+        await  final_img.blit(staticimg['bg_img'],[0,0])
     }  
 }  
-function message_before(name=None)
+
+function measure_text(name)
+{
+    return name;
+}
+
+async function message_before(name=None)
 {
     //prepare the underlying img
-    draw_chara()
-    draw_image(staticimg['messagebox'],img_mask=staticimg['messagebox_mask'],img_origin=[0,screensize[1]-get_image_height(staticimg['messagebox'])],on_canvas=False)
+    await draw_chara()
+    await draw_image(staticimg['messagebox'],img_mask=staticimg['messagebox_mask'],img_origin=[0,screensize[1]-get_image_height(staticimg['messagebox'])],on_canvas=False)
     if(name==None)
     {
         save['name']=''
     }
     else {
         save['name']=name
-        
+        measure_result=measure_text(name)
+        name_origin=[gameconfig['nameboxorig'][0],screensize[1]-get_image_height(staticimg['messagebox'])-gameconfig['nameboxorig'][1]-get_image_height(staticimg['message_name'])]
+         
+        // if gameconfig['namealign']=='left':
+        //     nametext_origin=(name_origin[0]+gameconfig['fontsize']/2,
+        //                      name_origin[1]+(get_image_height(staticimg['message_name'])-(measure_result[0][3]-measure_result[0][1]))/2)
+        // elif gameconfig['namealign']=='right':
+        //     nametext_origin=(name_origin[0]+get_image_width(staticimg['message_name'])-measure_result[1]-gameconfig['fontsize']/2,
+        //                      name_origin[1]+(get_image_height(staticimg['message_name'])-(measure_result[0][3]-measure_result[0][1]))/2)
+        // else:
+        //     nametext_origin=(name_origin[0]+(get_image_width(staticimg['message_name'])-measure_result[1])/2-1,name_origin[1]+(get_image_height(staticimg['message_name'])-(measure_result[0][3]-measure_result[0][1]))/2)
+        await draw_image(staticimg['message_name'],img_mask=staticimg['message_name_mask'],img_origin=name_origin,on_canvas=False)
+        await draw_text(name,nametext_origin,color=gameconfig['textcolor'],on_canvas=False)
     }
-
+    await update_screen()
 }
 function message_after()
 {
 
 }
 
-function draw_onebyone()
+async function draw_onebyone(charlist, topleft, bottomright, color, name=None, redrawmesagebox=True)
 {
+
+    var delay_time=[0.1,0.07,0.04,0.02,0,0]
+    var i=0
+    var line_num=0
+    var textorigin=topleft
+    var start_this_page=i
+    var  key_pressed=False
+    while(running && i<len(charlist))
+    {
+        if(keyboard.pressed(key_codes.EScancodeSelect) || keyboard.pressed(key_codes.EScancode1)){
+            key_pressed=True
+        } 
+        start_time=new Date().getTime()/1000
+        
+        if(redrawmesagebox)
+        {
+            message_before(name)
+        }else{
+            draw_chara()
+        } 
+        await draw_text(charlist[i],text_origin=textorigin,color=color,on_canvas=!key_pressed)
+        textorigin=[textorigin[0]+20,textorigin[1]]
+        if (! key_pressed)
+        {
+            e32.ao_yield()
+            end_time=new Date().getTime()/1000
+            if (end_time-start_time < delay_time[gameconfig['textspeed']]){
+                e32.ao_sleep(delay_time[gameconfig['textspeed']]-end_time+start_time)
+            } 
+        }   
+        i++;
+    }
+    update_screen()
+    return textorigin
 
 }
 function display_cursor()
@@ -434,7 +695,81 @@ function display_cursor()
 
 }
 
-function message(charlist,name=None)
+function SCROLL(length, bgfilename, startpos, endpos)
+{
+    var need_draw_chara;
+    if(chara_on && save['bg']==bgfilename)
+    {
+        need_draw_chara=true
+    }
+    else{
+        CHASetInvisible('a')
+        chara_on=False
+        need_draw_chara=False 
+    }
+    BGLoad(0,bgfilename)
+
+    if(keyboard.is_down(key_codes.EScancode1))
+    {
+        length=0.01
+    }else{
+        length=parseFloat(length)/1000.0
+    }
+    save['bgpercentorig']=endpos
+    startpos=(parseInt(startpos[0]*get_image_width(staticimg['bg'])/100),parseInt(startpos[1]*get_image_height(staticimg['bg'])/100))
+    endpos=(parseInt(endpos[0]*get_image_width(staticimg['bg'])/100),parseInt(endpos[1]*get_image_height(staticimg['bg'])/100))
+    //#draw charas on bg if any
+    if (need_draw_chara)
+    {
+        bgwithchara=new Image(staticimg['bg'].size()[0],staticimg['bg'].size()[1])
+        bgwithchara.blit(staticimg['bg'],target=(0,0))
+
+        chaindexseq=[]
+        for(chaindex of save['chara']){
+            if (!('layer' in save['chara'][chaindex]))
+            {
+                save['chara'][chaindex]['layer']=1
+            }
+            chaindexseq.push([chaindex,save['chara'][chaindex]['layer']])
+        }
+        //这里需要排序
+        //chaindexseq.sort(key=x:x[1])
+        for( chaindexentry of chaindexseq)
+        {
+            chaindex=chaindexentry[0]
+            if (save['chara'][chaindex]['chara_visible'])
+            {
+                img_origin=[startpos[0]+chara[chaindex]['chara_origin'][0],startpos[1]+chara[chaindex]['chara_origin'][1]]
+                bgwithchara.blit(chara[chaindex]['chara_img'],target=img_origin,mask=chara[chaindex]['chara_mask'])
+            }
+            chara[chaindex]['chara_origin']=[startpos[0]-endpos[0]+chara[chaindex]['chara_origin'][0],startpos[1]-endpos[1]+chara[chaindex]['chara_origin'][1]]
+            save['chara'][chaindex]['chara_center']+=startpos[0]-endpos[0]
+            save['chara'][chaindex]['chara_y']+=startpos[1]-endpos[1]
+        } 
+    }else{
+        bgwithchara=staticimg['bg']
+    }
+    img_origin=startpos
+    start_time=new Date().getTime()/1000
+    current_time=start_time
+    while ((current_time-start_time)<length)
+    {
+        xpos=(endpos[0]-startpos[0])*(current_time-start_time)/length
+        ypos=(endpos[1]-startpos[1])*(current_time-start_time)/length
+        img_origin=[-startpos[0]-xpos,-startpos[1]-ypos]
+        draw_image(bgwithchara,img_origin=img_origin)
+        current_time=new Date().getTime()/1000
+    }
+    draw_image(bgwithchara,img_origin=[-endpos[0],-endpos[1]])
+    if(need_draw_chara)
+    { 
+        staticimg['chara_img'].blit(bgwithchara,source=[endpos,(endpos[0]+screensize[0],endpos[1]+screensize[1])])
+    }
+    staticimg['bg_img'].blit(staticimg['bg'],source=[endpos,(endpos[0]+screensize[0],endpos[1]+screensize[1])])
+    e32.ao_yield()
+}
+
+async function message(charlist,name=None)
 {
     if(charlist=='')
     {
@@ -443,9 +778,9 @@ function message(charlist,name=None)
     var consttextorigin=[gameconfig['msglr'][0],screensize[1]-get_image_height(staticimg['messagebox'])+gameconfig['msgtb'][0]]
     var constbottomright=[screensize[0]-gameconfig['msglr'][1],screensize[1]-gameconfig['msgtb'][1]]
 
-    message_before(name)
+    await message_before(name)
 
-    textorigin=draw_onebyone(charlist, consttextorigin, constbottomright, gameconfig['textcolor'], name)
+    textorigin=await draw_onebyone(charlist, consttextorigin, constbottomright, gameconfig['textcolor'], name)
         display_cursor(textorigin,True)
 
     message_after(charlist,name)
@@ -462,6 +797,7 @@ async function ScriptParsePYMO()
             break;
         }
         line=f[indexf]
+        
         indexf++
         save['linenum']+=1
         // try{
@@ -471,6 +807,7 @@ async function ScriptParsePYMO()
             break;
         }
         var command = line.trim();
+        console.log(command)
         //change   
         if(command.startsWith('#change ')){
             change_script(del_blank(command.substring(8)))
@@ -499,7 +836,18 @@ async function ScriptParsePYMO()
             CHASetInvisible('a')
             continue
         }
-
+        
+        //#scroll B34a,0,0,100,0,10000
+        if(command.startsWith('#scroll '))
+        {
+            args=split_parameter(command,'#scroll ')
+            SCROLL(parseInt(args[5]),args[0],startpos=(parseFloat(args[1]),parseFloat(args[2])),endpos=(parseFloat(args[3]),parseFloat(args[4])))
+            if(args[0].startsWith(gameconfig['cgprefix']))
+            {
+                SetEVFlag(args[0])
+            } 
+            continue
+        } 
          //waitkey
          if (command.startsWith('#waitkey'))
          {
@@ -526,14 +874,12 @@ async function ScriptParsePYMO()
             args=split_parameter(command,'#say ')
             if (len(args)==1)
             {
-                message(args[0])
+                await message(args[0])
             }else{
-                message(args[1],name=args[0])
+                await message(args[1],name=args[0])
             }  
             continue
-         } 
-
-
+         }  
 
         // }catch(err)
         // {
@@ -605,6 +951,10 @@ function unpack_file(filename, filetype)
 
 function load_image(imgfilenamedata, width=None, height=None, is_mask=False)
 {
+    if(typeof(imgfilenamedata) == typeof(""))
+    {
+        imgfilenamedata = gamedata.Zip[imgfilenamedata].compressed_data;
+    }
     return new Promise((resolve,reject)=>{
 
         try{ 
@@ -687,6 +1037,18 @@ function Load_system_images()
     
 }
 
+
+function message_after(char_list,name=None){
+    update_screen()
+    save['message']=char_list
+    //AppendMessageLog(name,char_list)
+    //auto_save()
+    e32.ao_yield()
+    //#set inactivity time to 0 to keep the screen light on
+    //e32.reset_inactivity()
+}
+   
+
 ///加载游戏
 async function loadgame(){
     // try{
@@ -721,7 +1083,7 @@ async function loadgame(){
         staticimg['paragraph_img_mask']=new Image(screensize[0],screensize[1]) 
 
         var msgbox='message'
-        staticimg['messagebox']=load_image('system/'+msgbox+'.png')
+        staticimg['messagebox']=await load_image('system/'+msgbox+'.png')
 
         chara={}
         cache={'bg':{},'chara':{},'vo':{},'bgm':{},'sel':None}

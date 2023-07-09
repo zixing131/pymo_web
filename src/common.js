@@ -25,7 +25,11 @@ function BinReader(data)
 var e32 = {
     drive_list : function(){
         return ["c","e"];
-    } 
+    },
+    ao_yield:async function()
+    {
+        
+    }
 }
 
 var os = {
