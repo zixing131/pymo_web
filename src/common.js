@@ -29,6 +29,10 @@ var e32 = {
     ao_yield:async function()
     {
         
+    },
+    ao_sleep:async function(dt)
+    {
+        await sleep(dt*1000)
     }
 }
 
