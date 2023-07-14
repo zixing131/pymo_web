@@ -19,8 +19,7 @@ var charaindex
 var sepakfile 
 var seindex  
 var vopakfile 
-var voindex  
-var textfont=20
+var voindex   
 var gameconfig, bgsize, in_fade_out;
 var final_img, canvas, rendermode, screensize, anime
 var key_codes={
@@ -35,7 +34,7 @@ var time={
         return (new Date().getTime()/1000);
     }
 }
- 
+
 var bytes2hex=(bytes)=>{
 	let hex="",len=bytes.length;
     for(let i=0;i<len;i++){
@@ -195,7 +194,10 @@ function MyImage(width,height){
     }
     this.clear = function(color)
     {
-        color = "#"+bytes2hex(color) 
+        if(!color.toString().startsWith("#"))
+        { 
+            color = "#"+bytes2hex(color) 
+        }
         this.ctx.fillStyle=color;  
         this.ctx.beginPath();  
         this.ctx.fillRect(0,0,this.width,this.height);  
@@ -204,110 +206,19 @@ function MyImage(width,height){
     }
     this.text = function(pos,text,fill,font)
     {   
-        color = "#"+bytes2hex(fill)
+        var color = fill;
+        if(!fill.toString().startsWith("#"))
+        { 
+            color = "#"+bytes2hex(fill) 
+        }
+        this.ctx.font = font+"px sans-serif"
+        //console.log(this.ctx.font,font+"px")
         this.ctx.fillStyle=color; 
-        this.ctx.fillText(text,pos[0],pos[1]);      
+        this.ctx.fillText(text,pos[0],pos[1]-2);      
         this.ctx.save();
     }
     return this;
 }
-
-// Image.prototype.blit=   function(otherimg,target,source,mask)
-// {
-//     return new Promise((r,v)=>{ 
-//         if(target)
-//         {
-//             target[0]=parseInt( target[0])
-//             target[1]=parseInt( target[1])
-//         }
-//         if(mask)
-//         {
-//             var data = applyCanvasMask(otherimg,mask,otherimg.width, otherimg.height,true)
-//             var imgtemp =   new MyImage(otherimg.width, otherimg.height);
-//             var that=this;
-//             imgtemp.onload=   function()
-//             {
-//                  that.blit(imgtemp,target,source)
-//                 r();
-//             }
-//             imgtemp.src = data;
-//             return;
-//         }
-//         var canvas1 = document.createElement('canvas');
-//         canvas1.width = this.width;
-//         canvas1.height = this.height;
-//         var ctx = canvas1.getContext('2d')
-//         ctx.drawImage(this, 0, 0, this.width, this.height);
-//         if(!target)
-//         {
-//             target=[0,0]
-//         }
-//         ctx.drawImage(otherimg, target[0], target[1], otherimg.width, otherimg.height); 
-
-//         let b64 = canvas1.toDataURL("image/jpeg", 1.0);
-       
-//         this.onload=function()
-//         {
-//             r();    
-//         }
-//         this.src = b64; 
-//     })
-// }
-
-// Image.prototype.size=function()
-// {
-//     return [this.width,this.height];
-// }
-
-// Image.prototype.clear=function(color)
-// {
-//     return new Promise((r,v)=>{ 
-//         var canvas1 = document.createElement('canvas');
-//         canvas1.width = this.width;
-//         canvas1.height = this.height;
-//         var ctx = canvas1.getContext('2d')
-//         color = "#"+bytes2hex(color)
-//         ctx.fillStyle=color;  
-//         ctx.beginPath();  
-//         ctx.fillRect(0,0,canvas1.width,canvas1.height);  
-//         ctx.closePath();  
-//         let b64 = canvas1.toDataURL("image/jpeg", 1.0);
-//         this.onload=function()
-//         {
-//             r();    
-//         } 
-//         this.onerror=function()
-//         {
-//             v();    
-//         }
-//         this.src = b64; 
-//     })
-// }
-
-// Image.prototype.text=function(pos,text,fill,font)
-// {
-//     return new Promise((r,v)=>{ 
-//         var canvas1 = document.createElement('canvas');
-//         canvas1.width = this.width;
-//         canvas1.height = this.height;
-//         var ctx = canvas1.getContext('2d')
-//         color = "#"+bytes2hex(fill)
-//         ctx.fillStyle=color;
-//         console.log(text,pos[0],pos[1])
-//         ctx.fillText(text,pos[0],pos[1]);        
-//         let b64 = canvas1.toDataURL("image/jpeg", 1.0);
-//         this.onload=function()
-//         {
-//             r();    
-//         } 
-//         this.onerror=function()
-//         {
-//             v();    
-//         }
-//         this.src = b64; 
-//     })
-// }
-
 
 var keyboard={
     is_down:function(scancode)
@@ -420,7 +331,7 @@ function load_pak_file(filename)
 
 function processGameconfig(res)
 { 
-    gameconfig = dictionary({"fontsize":16},{"font":get_available_font()},{"fontaa":0},{"grayselected":1},{"hint":1},{"textcolor":(255,255,255)},{"cgprefix":"EV_"},{"vovolume":0},{"bgmvolume":0},{"msgtb":(6,0)},{"msglr":(10,7)},{"anime":1},{"namealign":"middle"});
+    gameconfig = dictionary({"fontsize":16},{"font":get_available_font()},{"fontaa":0},{"grayselected":1},{"hint":1},{"textcolor":[255,255,255]},{"cgprefix":"EV_"},{"vovolume":0},{"bgmvolume":0},{"msgtb":[6,0]},{"msglr":[10,7]},{"anime":1},{"namealign":"middle"});
    
     var resp = res.split('\n')
     for(var i=0;i<resp.length;i++)
@@ -433,10 +344,19 @@ function processGameconfig(res)
             var value = resstrsp[1].trim();
             if(name=='imagesize' || name =='nameboxorig'){
                 gameconfig[name]=[parseInt(resstrsp[1]),parseInt(resstrsp[2])]
-            }else if(name=='msgtb' || name =='msgtb'){
+            }else if(name=='msgtb' || name =='msglr'){
+                gameconfig[name]=[parseInt(resstrsp[1]),parseInt(resstrsp[2])]
+            }else if(resstrsp.length>2)
+            {
                 gameconfig[name]=[parseInt(resstrsp[1]),parseInt(resstrsp[2])]
             }else{  
-                gameconfig[name]=value
+                var v= parseInt(value);
+                if(Number.isNaN(v)){
+                    gameconfig[name]=value
+                }else
+                {
+                    gameconfig[name]=v
+                } 
             } 
         }
     }
@@ -582,13 +502,14 @@ function draw_image(img,img_mask=None,img_origin=[0,0],on_canvas=True, on_final_
     var measure_result=measure_text(char_list)
     
     textrect = [measure_result.width,parseInt(gameconfig['fontsize'])]
-     var  text_mask_img =   new MyImage(textrect[0],textrect[1])
+     var  text_mask_img = new MyImage(textrect[0],textrect[1])
      text_mask_img.clear([0,0,0])
-     text_mask_img.text([0,textrect[1]],char_list,fill=[255,255,255],font=textfont)
+     text_mask_img.text([0,textrect[1]],char_list,fill=[255,255,255],font=gameconfig['fontsize'])
     
      var text_img = new MyImage(text_mask_img.size()[0],text_mask_img.size()[1])
-    
+     
      text_img.clear(color)
+     text_img.saveLoad()
 
     if(on_final_img)
     {
@@ -666,8 +587,9 @@ function change_script(filename)
         f = gamedata.Zip['script'+'/'+filename.toUpperCase()+'.txt'].compressed_data;
     }
     f = new TextDecoder('utf-8').decode(f)
-    console.log(f)
+    //console.log(f)
     f=f.split("\n")
+    console.log(f)
     cache={'bg':{},'chara':{},'vo':{},'bgm':{},'sel':None}
     cache_pos=0
     save['linenum']=0
@@ -737,8 +659,13 @@ function delay_until(end_time)
 
 function measure_text(name)
 {
-    return tempctx.measureText(name);
-
+    tempctx.font = gameconfig['fontsize']+"px sans-serif"
+    //console.log(tempctx.font ,gameconfig['fontsize']+"px sans-serif" )
+    var ret = tempctx.measureText(name);
+    var ret2 = {}
+    ret2.width=ret.width;
+    ret2.height=ret.height;
+    return ret; 
 }
 
    function message_before(name=None)
@@ -785,14 +712,58 @@ async   function draw_onebyone(charlist, topleft, bottomright, color, name=None,
         } 
         start_time=time.time()
         
+        if(i<len(charlist)-1){
+            if(charlist.substring(i,2)=='\\n' || charlist.substring(i,2)=='\\r')
+            {
+                update_screen()
+                if(charlist.substring(i,2)=='\\n' && !keyboard.is_down(key_codes.EScancode1))
+                {
+                    display_cursor(textorigin)
+                }
+                key_pressed=False
+                textorigin=[topleft[0], textorigin[1]+gameconfig['fontsize']+1]
+                line_num+=1
+                i+=2
+                continue
+            } 
+        }  
         // if(redrawmesagebox)
         // {
         //     message_before(name)
         // }else{
         //     draw_chara()
         // } 
-        //console.log(textorigin)
+         //
         var measure_result=measure_text(charlist[i]) 
+        if(bottomright[0]-textorigin[0] < measure_result.width){
+            textorigin=[topleft[0], textorigin[1]+gameconfig['fontsize']+1]
+            //console.log("textorigin",textorigin)
+            line_num+=1
+        }
+        if( bottomright[1] < textorigin[1] + gameconfig['fontsize']*0.8)
+        {
+            //#display cursor
+            if(!keyboard.is_down(key_codes.EScancode1))
+            {
+                display_cursor(textorigin,True)
+            }
+            if( 'textspeed' in gameconfig && gameconfig['textspeed']==5){
+                    key_pressed=True
+            }else{
+                key_pressed=False
+            }
+            textorigin=topleft
+            line_num=0
+            if (redrawmesagebox)
+            {
+              message_before(name)
+            }
+            else{
+                draw_chara()
+            }
+            start_this_page=i
+        }
+        //console.log(textorigin)
         draw_text(charlist[i],text_origin=textorigin,color=color,on_canvas=!key_pressed)
         textorigin=[textorigin[0]+measure_result.width,textorigin[1]]
         if (! key_pressed)
@@ -802,10 +773,19 @@ async   function draw_onebyone(charlist, topleft, bottomright, color, name=None,
             if (end_time-start_time < delay_time[gameconfig['textspeed']]){
                 await e32.ao_sleep(delay_time[gameconfig['textspeed']]-end_time+start_time)
             } 
-        }    
+        } 
         i++;
     }
      update_screen()
+
+     if (textorigin[0] < bottomright[0]-gameconfig['fontsize']){
+
+        textorigin=[textorigin[0]+3,textorigin[1]]
+     }
+    else{
+        textorigin=[topleft[0],textorigin[1]+gameconfig['fontsize']+1]
+    }
+    
     return textorigin
 
 }
@@ -925,7 +905,7 @@ async  function SCROLL(length, bgfilename, startpos, endpos)
     e32.ao_yield()
 }
 
-async   function message(charlist,name=None)
+async function message(charlist,name=None)
 {
     if(charlist=='')
     {
@@ -937,7 +917,7 @@ async   function message(charlist,name=None)
      message_before(name)
 
     textorigin=await draw_onebyone(charlist, consttextorigin, constbottomright, gameconfig['textcolor'], name)
-    
+    console.log(textorigin)
     await display_cursor(textorigin,True) 
      message_after(charlist,name)
 }
@@ -967,6 +947,7 @@ async   function ScriptParsePYMO()
         //change   
         if(command.startsWith('#change ')){
             change_script(del_blank(command.substring(8)))
+            indexf=0;
             continue
         }
         //bg
@@ -1298,8 +1279,8 @@ async function loadgame(){
  
         f = gamedata.Zip['script'+'/'+gameconfig['startscript']+'.txt'].compressed_data;
         f = new TextDecoder('utf-8').decode(f)
-        console.log(f)
-        f=f.split("\n")
+        //console.log(f)
+        f=f.split("\n") 
         
         if(gameconfig['scripttype']=='mo1'){
 
