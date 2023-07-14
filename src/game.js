@@ -329,9 +329,23 @@ function load_pak_file(filename)
     }
 }
 
+function todictionary(...arr)
+{
+    var ret = {} 
+    for(var i=0;i<arr.length;i++)
+    { 
+        var arri = arr[i]
+        for(var key in arri)
+        {
+            ret[key] = arri[key];
+        }
+       
+    }
+    return ret;
+}
 function processGameconfig(res)
 { 
-    gameconfig = dictionary({"fontsize":16},{"font":get_available_font()},{"fontaa":0},{"grayselected":1},{"hint":1},{"textcolor":[255,255,255]},{"cgprefix":"EV_"},{"vovolume":0},{"bgmvolume":0},{"msgtb":[6,0]},{"msglr":[10,7]},{"anime":1},{"namealign":"middle"});
+    gameconfig = todictionary({"fontsize":16},{"font":get_available_font()},{"fontaa":0},{"grayselected":1},{"hint":1},{"textcolor":[255,255,255]},{"cgprefix":"EV_"},{"vovolume":0},{"bgmvolume":0},{"msgtb":[6,0]},{"msglr":[10,7]},{"anime":1},{"namealign":"middle"});
    
     var resp = res.split('\n')
     for(var i=0;i<resp.length;i++)
@@ -622,7 +636,7 @@ function split_parameter(str,command)
     ret=[]
     for(r of args){
         ret.push(r.trim())
-    }
+    } 
     return ret;
 }
 function len(d)
@@ -665,7 +679,11 @@ function measure_text(name)
     var ret2 = {}
     ret2.width=ret.width;
     ret2.height=ret.height;
-    return ret; 
+    if(!ret2.height || ret2.height==undefined)
+    {
+        ret2.height = gameconfig['fontsize'];
+    }
+    return ret2; 
 }
 
    function message_before(name=None)
@@ -682,21 +700,29 @@ function measure_text(name)
         measure_result=measure_text(name)
         name_origin=[gameconfig['nameboxorig'][0],screensize[1]-get_image_height(staticimg['messagebox'])-gameconfig['nameboxorig'][1]-get_image_height(staticimg['message_name'])]
         
-        // if gameconfig['namealign']=='left':
-        //     nametext_origin=(name_origin[0]+gameconfig['fontsize']/2,
-        //                      name_origin[1]+(get_image_height(staticimg['message_name'])-(measure_result[0][3]-measure_result[0][1]))/2)
-        // elif gameconfig['namealign']=='right':
-        //     nametext_origin=(name_origin[0]+get_image_width(staticimg['message_name'])-measure_result[1]-gameconfig['fontsize']/2,
-        //                      name_origin[1]+(get_image_height(staticimg['message_name'])-(measure_result[0][3]-measure_result[0][1]))/2)
-        // else:
-        //     nametext_origin=(name_origin[0]+(get_image_width(staticimg['message_name'])-measure_result[1])/2-1,name_origin[1]+(get_image_height(staticimg['message_name'])-(measure_result[0][3]-measure_result[0][1]))/2)
-         draw_image(staticimg['message_name'],img_mask=staticimg['message_name_mask'],img_origin=name_origin,on_canvas=False)
+         if (gameconfig['namealign']=='left')
+        {
+
+            nametext_origin=[name_origin[0]+gameconfig['fontsize']/2,
+            name_origin[1]+(get_image_height(staticimg['message_name'])-(measure_result.height))/2]
+            console.log(nametext_origin,name)
+        }
+        else if( gameconfig['namealign']=='right')
+        {
+
+            nametext_origin=[name_origin[0]+get_image_width(staticimg['message_name'])-measure_result.width-gameconfig['fontsize']/2,
+                             name_origin[1]+(get_image_height(staticimg['message_name'])-(measure_result.width-measure_result.height))/2]
+        }
+        else{
+            nametext_origin=[name_origin[0]+(get_image_width(staticimg['message_name'])-measure_result.width)/2-1,name_origin[1]+(get_image_height(staticimg['message_name'])-(measure_result.height))/2]      
+        } 
+        draw_image(staticimg['message_name'],img_mask=staticimg['message_name_mask'],img_origin=name_origin,on_canvas=False)
          draw_text(name,nametext_origin,color=gameconfig['textcolor'],on_canvas=False)
     }
      update_screen()
 } 
 
-async   function draw_onebyone(charlist, topleft, bottomright, color, name=None, redrawmesagebox=True)
+async   function draw_onebyone(charlist, topleft, bottomright, color, name, redrawmesagebox=True)
 {
 
     var delay_time=[0.1,0.07,0.04,0.02,0,0]
@@ -727,13 +753,7 @@ async   function draw_onebyone(charlist, topleft, bottomright, color, name=None,
                 continue
             } 
         }  
-        // if(redrawmesagebox)
-        // {
-        //     message_before(name)
-        // }else{
-        //     draw_chara()
-        // } 
-         //
+        
         var measure_result=measure_text(charlist[i]) 
         if(bottomright[0]-textorigin[0] < measure_result.width){
             textorigin=[topleft[0], textorigin[1]+gameconfig['fontsize']+1]
@@ -1013,7 +1033,7 @@ async   function ScriptParsePYMO()
             {
                await  message(args[0])
             }else{
-               await  message(args[1],name=args[0])
+               await  message(args[1],args[0])
             }  
             continue
          }   

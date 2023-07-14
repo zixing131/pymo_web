@@ -78,15 +78,6 @@ var None = null;
 var False = false;
 var True = true;
 
-function dictionary()
-{
-    var ret = {} 
-    for(var i=0;i<arguments.length;i++)
-    { 
-        ret[arguments[i][0]] = arguments[i][1];
-    }
-    return ret;
-}
 
 function get_available_font()
 {
