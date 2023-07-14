@@ -116,15 +116,15 @@ function MyImage(width,height){
            this.canv.width = width;
           this.canv.height = height;
          this.ctx.putImageData(data,0,0)
-         console.log(x,y)
+         //console.log(x,y)
          this.ctx.scale(x,y)
     }
 
-    this.blit = function(otherimg,target,source=[0,0],mask)
+    this.blit = function(otherimg,target=[0,0],source=[0,0],mask)
     {
         if(!target)
         {
-            target=[0,,0]
+            target=[0,0]
         }
         if(target)
         {
@@ -141,6 +141,7 @@ function MyImage(width,height){
         //console.log(target,otherimg)
         if(mask)
         {  
+
             var bufferCanvas = document.createElement('canvas'),
             buffer = bufferCanvas.getContext('2d');
             var bufferCanvas2 = document.createElement('canvas')
@@ -173,6 +174,12 @@ function MyImage(width,height){
                         contents.data[i] = alphaData[i-1] 
                 }
                 buffer2.putImageData(contents,0,0);
+
+                // this.ctx.fillStyle="#000000";  
+                // this.ctx.beginPath();  
+                // this.ctx.fillRect(target[0], target[1],otherimg.width,otherimg.height);  
+                // this.ctx.closePath();   
+ 
                 this.ctx.drawImage(bufferCanvas2,source[0],source[1],otherimg.width, otherimg.height, target[0], target[1], otherimg.width, otherimg.height); 
         }
         else{ 
@@ -233,7 +240,7 @@ function MyImage(width,height){
 //         ctx.drawImage(this, 0, 0, this.width, this.height);
 //         if(!target)
 //         {
-//             target=[0,,0]
+//             target=[0,0]
 //         }
 //         ctx.drawImage(otherimg, target[0], target[1], otherimg.width, otherimg.height); 
 
@@ -810,9 +817,10 @@ async   function display_cursor(cursororigin, wait_for_vo=False)
     start_time=time.clock()
 
     var back_img=  new MyImage(get_image_width(staticimg['message_cursor']),get_image_height(staticimg['message_cursor'])+Math.max(...space))
-     back_img.blit(final_img,"",cursororigin) 
+    //back_img.clear([0,0,0]) 
+    back_img.blit(final_img,[0,0],cursororigin)  
      back_img.saveLoad()
-     console.log(back_img,cursororigin,final_img)
+     //console.log(back_img,cursororigin,final_img)
      draw_image(staticimg['message_cursor'],img_mask=staticimg['message_cursor_mask'],img_origin=cursororigin)
     e32.ao_yield()
     var i=0 
@@ -829,15 +837,16 @@ async   function display_cursor(cursororigin, wait_for_vo=False)
         if(!iswait)
         {
             break;
-        }
+        } 
         origin=[0,space[i]]
         //console.log(origin)
         temp_img.blit(back_img)
          temp_img.blit(staticimg['message_cursor'],origin,"", staticimg['message_cursor_mask']) 
+        
          //console.log(cursororigin)  
          draw_image(temp_img,img_mask=None,img_origin=cursororigin)
         await e32.ao_sleep(0.1)
-        i=(i+1)%len(space)  
+        i=(i+1)%len(space)
     }
      draw_image(back_img,"",img_origin=cursororigin)
 }
