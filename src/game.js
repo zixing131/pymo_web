@@ -20,11 +20,14 @@ var sepakfile
 var seindex  
 var vopakfile 
 var voindex   
+var chara_on
 var gameconfig, bgsize, in_fade_out;
 var final_img, canvas, rendermode, screensize, anime
 var key_codes={
     EScancode1:1
 }
+var int = parseInt
+var float = parseFloat
 
 var time={
     clock:()=>{
@@ -67,7 +70,13 @@ function MyImage(width,height){
     { 
         var url = this.canv.toDataURL();   
         var img = new Image();
-        img.src = url;   
+        img.src = url;  
+        img.onload=function(){
+            console.log("onlod")
+        } 
+        img.onerror=function(){
+            console.log("onerror")
+        } 
     }
 
     this.load=async function(filedata)
@@ -494,6 +503,7 @@ function draw_image(img,img_mask=None,img_origin=[0,0],on_canvas=True, on_final_
         if( on_final_img)
         {
               final_img.blit(img, img_origin,"",img_mask)
+              final_img.saveLoad()
             if (on_canvas){
                  update_screen()
             } 
@@ -523,12 +533,12 @@ function draw_image(img,img_mask=None,img_origin=[0,0],on_canvas=True, on_final_
      var text_img = new MyImage(text_mask_img.size()[0],text_mask_img.size()[1])
      
      text_img.clear(color)
-     text_img.saveLoad()
+     //text_img.saveLoad()
 
     if(on_final_img)
     {
          final_img.blit(text_img, text_origin,"",text_mask_img)
-         final_img.saveLoad()
+         //final_img.saveLoad()
     }
     if(on_canvas)
     {
@@ -639,6 +649,7 @@ function split_parameter(str,command)
     } 
     return ret;
 }
+
 function len(d)
 {
     return d.length;
@@ -647,10 +658,101 @@ function SetEVFlag(a)
 {
     console.log('SetEVFlag',a);
 }
-function CHASetInvisible()
+function CHASetInvisible(chaindex)
 {
-    console.log('CHASetInvisible')
+    if(chaindex=='a')
+    {
+        //#for save_element in save['chara']:
+        //#    del save['chara'][save_element]['chara_visible']=False
+        save['chara']={}
+        chara={}
+
+    }else{
+        if (chaindex in save['chara'])
+            {
+
+                save['chara'][chaindex]['chara_visible']=False 
+            }
+    } 
 }
+
+function pos_bg2screen(pos_on_bg)
+{
+    return [pos_bg2screen_x(pos_on_bg[0]),pos_bg2screen_y(pos_on_bg[1])]
+}
+
+function pos_bg2screen_x(pos_on_bg_x){
+    if(bgsize[0]==screensize[0])// #fit width, no need to change
+    { 
+        return pos_on_bg_x
+    }
+    else{
+        return pos_on_bg_x+(screensize[0]-bgsize[0])/2    
+    }
+}
+
+function pos_bg2screen_y(pos_on_bg_y){
+    if (bgsize[1]==screensize[1])//: #fit height, no need to change
+        return pos_on_bg_y
+    else
+        return pos_on_bg_y+(screensize[1]-bgsize[1])/2 
+} 
+
+function CHAOffsetPos(chaindex,offset)
+{
+    if(chaindex in save['chara']  &&  chaindex in chara)
+    {
+        chara[chaindex]['chara_origin']=pos_bg2screen([save['chara'][chaindex]['chara_center']-get_image_width(chara[chaindex]['chara_img'])/
+2+offset[0], save['chara'][chaindex]['chara_y']+offset[1]])
+    }
+}
+
+function CHAQuake(chaindex_list,offsets,cycle=100)
+{
+    if (! keyboard.is_down(key_codes.EScancode1))
+    {
+        var delay=float(cycle)/1000.0
+        for (var offset of offsets)
+        {
+            start_time=time.time()
+            realoffset=(int(offset[0]*screensize[0]/540),int(offset[1]*screensize[1]/360))
+            for(var  chaindex of chaindex_list){ 
+                CHAOffsetPos(chaindex,realoffset)
+            }
+            CHADisp(transition=None)
+            end_time=time.time()
+            if(end_time-start_time < delay)
+            {
+
+                e32.ao_sleep(delay-end_time+start_time)
+            }
+        }
+    } 
+}
+
+function QUAKE()
+{
+    if(in_fade_out || keyboard.is_down(key_codes.EScancode1))
+    { 
+        return
+    }
+    staticimg['tempimg'].clear([0,0,0])
+    delay=0.06
+    img_origins=[[-1,-2],[4,3],[6,-4],[5,3],[2,-1],[0,0]]
+
+    for (var img_origin of img_origins)
+    {
+        start_time=time.time()        
+        draw_image(staticimg['tempimg'],None,None,on_canvas=False)
+        draw_image(staticimg['oldimg'],None,img_origin=img_origin)
+        end_time=time.time()
+        if (end_time-start_time < delay){ 
+            e32.ao_sleep(delay-end_time+start_time)
+        }
+    } 
+}
+
+
 function del_blank(data)
 {
     return data.trim()
@@ -665,7 +767,7 @@ function delay_until(end_time)
 { 
     if(chara_on)
     {
-         final_img.blit(staticimg['chara_img'],[0,0])
+        final_img.blit(staticimg['chara_img'],[0,0])
     }else{
         final_img.blit(staticimg['bg_img'],[0,0])
     }  
@@ -819,7 +921,7 @@ async   function display_cursor(cursororigin, wait_for_vo=False)
     var back_img=  new MyImage(get_image_width(staticimg['message_cursor']),get_image_height(staticimg['message_cursor'])+Math.max(...space))
     //back_img.clear([0,0,0]) 
     back_img.blit(final_img,[0,0],cursororigin)  
-     back_img.saveLoad()
+     //back_img.saveLoad()
      //console.log(back_img,cursororigin,final_img)
      draw_image(staticimg['message_cursor'],img_mask=staticimg['message_cursor_mask'],img_origin=cursororigin)
     e32.ao_yield()
@@ -890,6 +992,7 @@ async  function SCROLL(length, bgfilename, startpos, endpos)
         }
         //这里需要排序
         //chaindexseq.sort(key=x:x[1])
+        chaindexseq=sortData(chaindexseq)
         for( chaindexentry of chaindexseq)
         {
             chaindex=chaindexentry[0]
@@ -941,6 +1044,258 @@ async function message(charlist,name=None)
     await display_cursor(textorigin,True) 
      message_after(charlist,name)
 }
+
+function hexstr2color(string)
+{
+    var rgbint=16777215
+    try{
+         rgbint=parseInt(string.substring(1), 16)
+    }
+    catch(err)
+    {
+        rgbint=16777215
+    }
+    return [parseInt(rgbint / 256 / 256 % 256), parseInt(rgbint/ 256 % 256),parseInt(rgbint % 256)]
+}
+
+function Flush(colorstr,speed=0)
+{
+    if(in_fade_out)
+    {
+        return;
+    }
+    if (colorstr=='RED'){
+        color=[255,0,0]
+    }
+    else if(colorstr=='WHITE')
+    {
+        color=[255,255,255]
+    }
+    else if(colorstr=='BLUE')
+    {
+        color=[0,0,255]
+    } 
+    else{
+        color=hexstr2color(colorstr)
+    }
+
+    staticimg['tempimg'].blit(final_img,[0,0])
+    final_img.clear(color)
+    update_screen()
+    if(speed)
+    {
+        e32.ao_sleep(speed/1000.0)
+    }
+    draw_image(staticimg['tempimg'])
+}
+
+function FADE(length, color=None, is_fade_out=True)
+{
+    if(keyboard.is_down(key_codes.EScancode1) || length<10)
+    {
+        length=10
+    }
+    else if(length>10000)
+    {
+        length=10000
+    }
+    if(!color){
+        if(is_fade_out)
+        {
+            color = [0,0,0]
+        }
+        else {
+            color=fade_out_color
+        }
+    }
+
+    staticimg['tempimg'].clear(color)
+
+    staticimg['oldimg'].blit(final_img,[0,0])
+    if (is_fade_out)
+    {
+    fade_out_color=color
+    ALPHA(length, staticimg['tempimg'])
+    in_fade_out=True
+    }
+    else{
+        in_fade_out=False
+        draw_image(staticimg['tempimg'],None,None,on_canvas=False)
+        ALPHA(length, staticimg['oldimg'])
+        //allow_redraw=True
+}       
+}
+
+function str_percent2pos(percent,full_len)
+{
+    return int(float(percent)*float(full_len)/100.0)
+}
+
+function CHAResetPos(chaindex)
+{
+    if(chaindex=='a')
+    {
+        for(var save_element in save['chara'])
+        {
+            save['chara'][save_element]['chara_center']=bgsize[0]/2
+        }
+    }
+    else{
+        if(chaindex in save['chara'])
+        {
+            save['chara'][chaindex]['chara_center']=bgsize[0]/2
+        }
+    } 
+}
+async function CHAload(chaindex, chafilename)
+{
+    chara[chaindex]={}
+    if(!(chaindex in save['chara']))
+    {
+        save['chara'][chaindex]={}
+    }
+    save['chara'][chaindex]['filename']=chafilename
+    
+    if(!('chara_center' in save['chara'][chaindex]))
+    {
+        save['chara'][chaindex]['chara_center']=screensize[0]/2
+    }
+    if(chafilename in  cache['chara'])
+    {
+        chara[chaindex]['chara_img']=cache['chara'][chafilename]['res']
+        chara[chaindex]['chara_mask']=cache['chara'][chafilename]['res_mask']
+        cache['chara'][chafilename]['usetime']-=1
+        if( cache['chara'][chafilename]['usetime']==0)
+        { 
+            delete cache['chara'][chafilename]
+        } 
+    }else{
+        full_filename = unpack_file(chafilename,'charaformat')
+        full_maskname = unpack_file(chafilename+'_mask','charaformat')
+        chara[chaindex]['chara_img']=await load_image(full_filename)
+        chara[chaindex]['chara_mask']=await load_image(full_maskname,None,None, is_mask=True)
+    }
+    save['chara'][chaindex]['chara_visible']=False 
+}
+
+function get_image_size(img){
+    return [img.width,img.height]
+}
+function CHASetVisible(chaindex)
+{
+    if(chaindex in save['chara'])
+    {       
+         save['chara'][chaindex]['chara_visible']=True
+    }
+}
+
+function CHAScroll(chaindex, length, startpos, endpos, beginalpha, mode)
+{
+    if(beginalpha>50)
+    {
+        var fade_mask=new MyImage(chara[chaindex]['chara_mask'].size()[0],chara[chaindex]['chara_mask'].size()[1])
+        var bak_mask=new MyImage(chara[chaindex]['chara_mask'].size()[0],chara[chaindex]['chara_mask'].size()[1])
+        bak_mask.blit(chara[chaindex]['chara_mask'])
+    }
+    if( keyboard.is_down(key_codes.EScancode1))
+    { 
+        length=0.01
+    }
+    else{
+        length=float(length)/1000.0
+    }
+    var  start_time=time.clock()
+    current_time=start_time
+    if(beginalpha<=50)
+    {
+        //#no alpha transition
+        while ((current_time-start_time)<length)
+        {
+            xpos=startpos[0]+(endpos[0]-startpos[0])*(current_time-start_time)/length
+            ypos=startpos[1]+(endpos[1]-startpos[1])*(current_time-start_time)/length
+            CHASetPos(chaindex,xpos,ypos,mode)
+            CHADisp(None)
+            current_time=time.clock()
+        }
+    }
+    else{
+        ///#with alpha transition
+        while ((current_time-start_time)<length){
+            xpos=startpos[0]+(endpos[0]-startpos[0])*(current_time-start_time)/length
+            ypos=startpos[1]+(endpos[1]-startpos[1])*(current_time-start_time)/length
+            level=(255-beginalpha)+int( beginalpha*(current_time-start_time)/length)
+            fade_mask.clear([level,level,level])
+            chara[chaindex]['chara_mask'].clear([0,0,0])
+            chara[chaindex]['chara_mask'].blit(bak_mask,None,None, mask=fade_mask)
+            CHASetPos(chaindex,xpos,ypos,mode)
+            CHADisp(transition=None)
+            current_time=time.clock()
+        }
+        chara[chaindex]['chara_mask'].blit(bak_mask)
+    }
+    CHASetPos(chaindex,endpos[0],endpos[1],mode)
+    CHADisp(transition=None)
+    e32.ao_yield()
+}
+
+function  CHASetLayer(chaindex,layer)
+{
+    if(!(chaindex in save['chara']))
+    {
+        return
+    }
+    save['chara'][chaindex]['layer']=layer
+}
+/*
+#set the position of chara. mode 0:upperleft, mode 1:uppermiddle, mode 2:upperright, 
+#                                             mode 3:middlemiddle, 
+#                           mode 4:lowerleft, mode 5:lowermiddle, mode 6:lowerright
+*/
+function CHASetPos(chaindex,xpos,ypos=0,mode=5)
+{
+    if(!(chaindex in save['chara']))
+    {
+        return
+    }
+    var charasize=get_image_size(chara[chaindex]['chara_img'])
+
+    //#save['chara'][chaindex]['chara_center'] is the x pos of chara center on bg
+    //#save['chara'][chaindex]['chara_y'] is the distance of chara top to the bg top
+
+    if(mode==5)
+    {
+        save['chara'][chaindex]['chara_center']=xpos
+        save['chara'][chaindex]['chara_y']=bgsize[1]-charasize[1]-ypos
+    } 
+    else if( mode==0)
+    {
+        save['chara'][chaindex]['chara_center']=xpos+charasize[0]/2
+        save['chara'][chaindex]['chara_y']=ypos
+    }
+    else if( mode==1){
+        save['chara'][chaindex]['chara_center']=xpos
+        save['chara'][chaindex]['chara_y']=ypos
+    }
+    else if( mode==2){
+        save['chara'][chaindex]['chara_center']=bgsize[0]-xpos-charasize[0]/2
+        save['chara'][chaindex]['chara_y']=ypos
+    }
+    else if( mode==3){
+        save['chara'][chaindex]['chara_center']=xpos
+        save['chara'][chaindex]['chara_y']=ypos-charasize[1]/2
+    }
+    else if( mode==4){
+        save['chara'][chaindex]['chara_center']=xpos+charasize[0]/2
+        save['chara'][chaindex]['chara_y']=bgsize[1]-charasize[1]-ypos
+    }
+    else{//(mode==6
+        save['chara'][chaindex]['chara_center']=bgsize[0]-xpos-charasize[0]/2
+        save['chara'][chaindex]['chara_y']=bgsize[1]-charasize[1]-ypos
+    }
+    chara[chaindex]['chara_origin']=pos_bg2screen([save['chara'][chaindex]['chara_center']-charasize[0]/2, save['chara'][chaindex]['chara_y']])
+ 
+}
+  
 
 //执行pymo脚本
 async   function ScriptParsePYMO()
@@ -1005,6 +1360,191 @@ async   function ScriptParsePYMO()
             } 
             continue
         } 
+
+        //#flash #FF0000,1000
+
+        if(command.startsWith('#flash '))
+        {
+            args=split_parameter(command,'#flash ')
+            if (len(args)==1)
+            { 
+                args.push('0')
+            }
+            Flush(args[0],parseInt(args[1]))
+            continue
+        }
+
+// #fade_out #000000,1000
+      if(command.startsWith('#fade_out '))
+      {
+        args=split_parameter(command,'#fade_out ')
+        if (len(args)<2)
+            args.push('1000')
+        FADE(parseInt(args[1]), color=hexstr2color(args[0]))
+        continue
+      }
+
+      //#fade_in 1000
+
+        if(command.startsWith('#fade_in '))
+    {
+        args=split_parameter(command,'#fade_in ')
+        if (Number.isInteger(parseInt(args[0])) )
+        {
+            FADE(parseInt(args[0]),None,False)
+        } 
+        else{
+            FADE(1000,None,False)
+        }
+        continue
+
+    }
+
+        //#chara 0,SM02AMA,25,1,1,SN01AMA,75,2,400
+        if(command.startsWith('#chara '))
+        {
+            args=split_parameter(command,'#chara ')
+
+            for(var i=0;i<len(args)-1;i+=4)
+            {
+                if(args[i+1].toUpperCase()=='NULL')
+                {
+                    CHASetInvisible(args[i])
+                    CHAResetPos(args[i])
+                }else{
+                    await CHAload(args[i],args[i+1])
+                    CHASetPos(args[i],str_percent2pos(args[i+2],bgsize[0]))
+                    CHASetLayer(args[i],parseInt(args[i+3]))
+                    CHASetVisible(args[i])
+                }
+            }
+            CHADisp(None,int(args[len(args)-1]))
+            continue 
+        }
+        // #chara_y 3,0,SM02AMA,25,10,1,1,SN01AMA,75,20,2,400
+
+         if(command.startsWith('#chara_y '))
+        {
+            args=split_parameter(command,'#chara_y ')
+
+                for(var i=0;i<len(args)-1;i+=5)
+            {
+                if(args[i+1].toUpperCase()=='NULL')
+                {
+                    CHASetInvisible(args[i])
+                    CHAResetPos(args[i])
+                }else{
+                    if (! (args[i] in save['chara']))
+                    { 
+                        save['chara'][args[i]]={} 
+                    }
+                    await CHAload(args[i],args[i+1]) 
+                    CHASetPos(args[i],str_percent2pos(args[i+2],bgsize[0]),str_percent2pos(args[i+3],bgsize[1]),int(args[0]))
+                    CHASetLayer(args[i],int(args[i+4]))
+                    CHASetVisible(args[i])
+                }
+            }
+            CHADisp(length=int(args[len(args)-1]))
+            continue
+        }
+        //#chara_scroll 5,0,SM02AMA,0,0,50,0,130,1,400
+        //#chara_scroll 5,0,50,0,400
+        if(command.startsWith('#chara_scroll '))
+        { 
+            args=split_parameter(command,'#chara_scroll ')
+            if (len(args)==10)
+            {
+                if(! (args[1] in save['chara']))
+                {
+                    save['chara'][args[1]]={}
+                }
+                CHAload(args[1],args[2])
+                CHASetLayer(args[1],int(args[8]))
+                CHASetVisible(args[1])
+                CHAScroll(args[1], int(args[9]), (str_percent2pos(args[3],bgsize[0]),str_percent2pos(args[4],bgsize[1])),
+                          (str_percent2pos(args[5],bgsize[0]),str_percent2pos(args[6],bgsize[1])), int(args[7]), int(args[0]))
+            }
+            continue
+        }
+
+        //#chara_pos 0,43
+        if(command.startsWith('#chara_pos '))
+        {
+            args=split_parameter(command,'#chara_pos ')
+            if (len(args)==2){
+                args.push('0')
+                args.push('5')
+            }
+                
+            CHASetPos(args[0],str_percent2pos(args[1],bgsize[0]),str_percent2pos(args[2],bgsize[1]),int(args[3]))
+            CHADisp(transition=None)
+            continue
+        }
+        //#chara_cls
+        if(command.startsWith('#chara_cls '))
+        {
+            args=split_parameter(command,'#chara_cls ')
+            CHASetInvisible(args[0])
+            CHAResetPos(args[0])
+            if( len(args)<2)
+            {
+                CHADisp() 
+            }
+            else{
+                CHADisp(None,length=int(args[1]))
+            }
+            continue
+         }
+
+         //#chara_quake 0,1
+
+         if (command.startsWith('#chara_quake '))
+         {
+            args=split_parameter(command,'#chara_quake ')
+            CHAQuake(args,[[-10,3],[10,3],[-6,2],[5,2],[-4,1],[3,0],[-1,0],[0,0]])
+            continue 
+         } 
+
+         //#chara_down 0,1
+         if (command.startsWith('#chara_down '))
+         {
+            args=split_parameter(command,'#chara_quake ')
+            CHAQuake(args,[[0,7],[0,16],[0,12],[0,16],[0,7],[0,0]])
+            continue 
+         } 
+         //#chara_up 0,1
+         if (command.startsWith('#chara_up '))
+         {
+            args=split_parameter(command,'#chara_quake ')
+            CHAQuake(args,[[[0,-16],[0,0],[0,-6],[0,0]]])
+            continue 
+         } 
+         //#chara_anime 0,1
+         if (command.startsWith('#chara_anime '))
+         {
+            args=split_parameter(command,'#chara_anime ')
+                offsets=[]
+                j=int(args[2])
+                while(j>0)
+                {
+                    for(var i=3;i<len(args);i+=2)
+                    { 
+                        offsets.push([float(args[i]),float(args[i+1])])
+                    } 
+                j-=1
+                    } 
+                CHAQuake([args[0]],offsets,int(args[1]))
+                continue
+         }
+         
+         // #quake
+         if (command.startsWith('#quake'))
+         { 
+            QUAKE()
+            continue   
+         }
+
+
          //waitkey
          if (command.startsWith('#waitkey'))
          {
@@ -1157,6 +1697,69 @@ async function load_image(imgfilenamedata, width=None, height=None, is_mask=Fals
     return myImage;  
 }
 
+function sortData(data)
+{
+    for(var i=0;i<data.length;i++)
+    {
+        for(var j=i+1;j<data.length;j++)
+        {
+            if(data[i][0]>data[j][0])
+            {
+                var t=data[i]
+                data[i]=data[j]
+                data[j]=t
+            }
+        }
+    }
+    return data
+}
+
+
+function CHADisp(transition='ALPHA',length=300)
+{
+    chara_on=False
+    staticimg['oldimg'].blit(final_img,[0,0])
+    draw_image(staticimg['bg_img'],None,None,on_canvas=False)
+
+    chaindexseq=[]
+
+    //#smallest layer number is at the bottom
+
+    for(var chaindex in save['chara'])
+    {
+        if(!('layer' in save['chara'][chaindex]))
+        {
+            save['chara'][chaindex]['layer']=1
+        }
+        chaindexseq.push([chaindex,save['chara'][chaindex]['layer']])
+    }
+    console.log(chaindexseq)
+    chaindexseq = sortData(chaindexseq)
+    console.log(chaindexseq)
+    for (var chaindexentry of chaindexseq)
+    {
+        var chaindex=chaindexentry[0]
+        console.log(chaindex,save['chara'])
+        if (save['chara'][chaindex]['chara_visible'])
+        {
+            draw_image(chara[chaindex]['chara_img'],img_mask=chara[chaindex]['chara_mask'],img_origin=chara[chaindex]['chara_origin'],on_canvas=False)
+            chara_on=True
+        }
+    }
+    staticimg['chara_img'].blit(final_img,[0,0])
+    if(! in_fade_out)
+    {
+        if (transition=='ALPHA'){
+            final_img.blit(staticimg['oldimg'],[0,0])
+            ALPHA(length, staticimg['chara_img'])
+        } 
+        else{ 
+            update_screen()
+        }
+    }
+    chara_on=True
+}
+
 async   function BGLoad(bgindex,bgfilename,percentorig)
 {  
     if(!percentorig)
@@ -1275,7 +1878,7 @@ async function loadgame(){
         bgindex = ret[1]
 
         console.log(gameconfig)
-        var bgsize=gameconfig['imagesize']
+        bgsize=gameconfig['imagesize']
         console.log(bgsize)
         var bgorigin=[(screensize[0]-gameconfig['imagesize'][0])/2, (screensize[1]-gameconfig['imagesize'][1])/2]
 
