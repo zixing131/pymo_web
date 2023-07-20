@@ -1,3 +1,26 @@
+var async = function (makeGenerator) {
+    return function () {
+        var generator = makeGenerator instanceof Function ? makeGenerator.apply(this, arguments) : makeGenerator;
+
+        function handle(result) {
+            // result => { done: [Boolean], value: [Object] }
+            if (result.done) return Promise.resolve(result.value);
+
+            return Promise.resolve(result.value).then(function (res) {
+                return handle(generator.next(res));
+            }, function (err) {
+                return handle(generator.throw(err));
+            });
+        }
+
+        try {
+            return handle(generator.next());
+        } catch (ex) {
+            return Promise.reject(ex);
+        }
+    }
+};
+
 function BinReader(data)
 {
     this.pos=0;
@@ -22,19 +45,20 @@ function BinReader(data)
     }
     return this;
 }
+
 var e32 = {
     drive_list : function(){
-        return ["c","e"];
-    },
-    ao_yield:async function()
-    {
-        
-    },
-    ao_sleep:async function(dt)
-    {
-        await sleep(dt*1000)
-    }
-}
+        return ["c","e"]
+    } 
+} 
+e32.ao_yield = async (function*(){
+    
+})
+
+e32.ao_sleep = async( function*(dt)
+{
+    yield sleep(dt*1000)
+})
 
 var os = {
     path:{ 
@@ -87,6 +111,7 @@ function xhrGetFile(url)
 {
     return new Promise((resolve,reject) => {
         var xhr = new XMLHttpRequest({mozSystem:true});
+        xhr.responseType="text";
         xhr.open('GET', url, true);
         xhr.onload = function () {
         if (xhr.status === 200) {
@@ -99,9 +124,9 @@ function xhrGetFile(url)
       });
 }
 var stringres={};
-async function load_string_res(path)
+const load_string_res = async (function* (path)
 {
-    var res =await xhrGetFile("pymo/stringres.txt");
+    var res =yield xhrGetFile("pymo/stringres.txt");
     var resp = res.split('\n')
     for(var i=0;i<resp.length;i++)
     {
@@ -113,18 +138,29 @@ async function load_string_res(path)
         }
     }
     return stringres;
-}
+})
+ 
 
-function load_image(path,is_mask)
+function todictionary(...arr)
 {
-    return null;
+    var ret = {} 
+    for(var i=0;i<arr.length;i++)
+    { 
+        var arri = arr[i]
+        for(var key in arri)
+        {
+            ret[key] = arri[key];
+        }
+       
+    }
+    return ret;
 }
-
-async function main()
+const main= async (function* ()
 {
+    try{
     var final_img = None;
     var rendermode = 0;
-    var staticimg = dictionary({"keypad":None});
+    var staticimg = todictionary({"keypad":None});
     var background = false;
     var sfx = None;
     var bgm = None;
@@ -132,7 +168,7 @@ async function main()
     var autosave = 0;
     var engineversion = 1.2;
     var screensize = (320,240);
-    var gameconfig = dictionary({"fontsize":16},{"font":get_available_font()},{"fontaa":0},{"grayselected":1},{"hint":1},{"textcolor":(255,255,255)},{"cgprefix":"EV_"},{"vovolume":0},{"bgmvolume":0},{"msgtb":(6,0)},{"msglr":(10,7)},{"anime":1},{"namealign":"middle"});
+    var gameconfig = todictionary({"fontsize":16},{"font":get_available_font()},{"fontaa":0},{"grayselected":1},{"hint":1},{"textcolor":(255,255,255)},{"cgprefix":"EV_"},{"vovolume":0},{"bgmvolume":0},{"msgtb":(6,0)},{"msglr":(10,7)},{"anime":1},{"namealign":"middle"});
     var chinese_encoding = "gbk";
     var RES_PATH = "";
     var resources = ["icon_mask.png","keypad.png"];
@@ -159,9 +195,13 @@ async function main()
     return;
     } 
 
-    var stringres=await load_string_res(os.path.join(RES_PATH,'stringres.txt'))
-    var gameiconmask=load_image(RES_PATH+'icon_mask.png', is_mask=True)
+    var stringres=yield load_string_res(os.path.join(RES_PATH,'stringres.txt'))
+    //var gameiconmask=load_image(RES_PATH+'icon_mask.png', is_mask=True)
     console.log(stringres['GAME_SEARCHING']);
-
+    }
+    catch(err)
+    {
+        console.log(err)
+    }
 }
-
+)

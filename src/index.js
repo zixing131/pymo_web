@@ -1,11 +1,11 @@
-
+try{
 mainmenulist = [ 
-	["启动游戏",'opengame',],
-	["刷新列表",'refreshGameList',],
-    ["安装游戏",'installgame',],
-	["删除游戏",'deletegame',],
-    ["关于",'about',],
-    ["退出",'exit'],
+	["启动游戏",opengame,],
+	["刷新列表",refreshGameList,],
+    ["安装游戏",installgame,],
+	["删除游戏",deletegame,],
+    ["关于",about,],
+    ["退出",exit],
 ]
 
 function myopengame(gamename)
@@ -44,8 +44,8 @@ function loadMenu()
         {
             var nowitem = mainmenulist[i];
             var title = nowitem[0];
-            var actionnow = nowitem[1];
-            menus.push(' <div class="menuitem" focusable onclick="'+actionnow+'()" >' + title + '</div>');
+            //var actionnow = nowitem[1];
+            menus.push(' <div class="menuitem" focusable>' + title + '</div>');
             
         }
         menuitems.innerHTML = menus.join('');
@@ -174,12 +174,12 @@ function refreshGameList()
 					var res=files[i];
 					try{ 
 					var gameconfig = res.Zip['gameconfig.txt'];
-                   
+                    
                     gameconfig=new TextDecoder('utf-8').decode(gameconfig.compressed_data);
                     console.log(gameconfig) 
                     gameconfig = processGameconfig(gameconfig)
-                    var gametitle = gameconfig["gametitle"];
-                    gametitle=gametitle.replaceAll('\\n','</br>')
+                    var gametitle = gameconfig["gametitle"]; 
+                    gametitle=gametitle.replace(/\\n/g,'</br>')
 					var iconfile = res.Zip["icon.png"];  
 					var bytes = iconfile.compressed_data;
 					var blob = new Blob([bytes], { type: "image/png" });
@@ -368,6 +368,17 @@ function restoreMenuName()
      
 }
 
+function clickByName(name)
+{
+    for(var item of mainmenulist)
+    {
+        if(item[0]==name)
+        {
+            item[1]();
+            return;
+        }
+    }
+}
 
 function softleft()
 {
@@ -386,7 +397,9 @@ function softleft()
             var fc = document.getElementsByClassName("focus");
             if(fc && fc.length>0)
             {
-                fc[0].click();
+                var title = fc[0].innerText;
+                console.log(title);
+                clickByName(title);
             }
 			enableApplist();
         }
@@ -479,5 +492,13 @@ function handleKeydown(e) {
 
 window.addEventListener('keydown', handleKeydown);
 
+document.getElementById('softkeyleft').onclick = softleft;
+document.getElementById('softkeyright').onclick = softright;
+
+
 main();
 
+}catch(err)
+{
+    console.log(err)
+}

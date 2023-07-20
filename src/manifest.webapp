@@ -1,0 +1,23 @@
+{
+    "name": "pymo",
+    "description": "pymo web",
+    "version": "0.0.1",
+    "origin": "app://pymoweb.zixing.fun",
+    "launch_path": "/index.html",
+    "icons": {
+        "128": "/icons/icon128x128.png"
+    },
+    "developer": {
+        "name": "zixing",
+		"url": "https://github.com/zixing131"
+    },
+	"cursor": false,
+    "fullscreen": true,
+    "type": "privileged",
+    "permissions": {
+        "systemXHR": {},
+		"storage": {
+			"description": "Required to store files without limitations"
+		}
+    }
+}

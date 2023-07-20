@@ -1,6 +1,9 @@
 const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
 var gamedata = undefined;
+//是否旋转屏幕
+var isRotation=true
 var screensize=[320,240]
+
 var save={}
 var cache={} 
 var cache={'bg':{},'chara':{},'vo':{},'bgm':{},'sel':None}
@@ -79,7 +82,7 @@ function MyImage(width,height){
         } 
     }
 
-    this.load=async function(filedata)
+    this.load=async(function*(filedata)
     { 
         var that =this;
        return new Promise((r,v)=>{ 
@@ -109,7 +112,7 @@ function MyImage(width,height){
            
         })
 
-    }
+    })
     this.resize = function(width,height)
     {
         var x = parseFloat(parseFloat(width)/parseFloat(this.width));
@@ -242,6 +245,7 @@ var keyboard={
 maincanvas = document.getElementById('maincanvas') 
 var tempcanvas = document.createElement('canvas') 
 var tempctx =  tempcanvas.getContext('2d')
+var first = true;
 canvas={
 
     begin_redraw:function()
@@ -260,8 +264,18 @@ canvas={
         }
         //console.log('canvas.blit')
         var ctx = maincanvas.getContext('2d')
-        ctx.drawImage(img.canv,target[0],target[1]) 
         
+        if(first)
+        {
+            if(isRotation)
+            {
+                ctx.translate(screensize[1], 0);
+                var degree=90
+                ctx.rotate(degree * Math.PI / 180 );
+                first=false;
+            }
+        }
+        ctx.drawImage(img.canv,target[0],target[1]) 
         // mainimg.onload=function(){
         //     r();
         // }
@@ -282,10 +296,10 @@ anime={
 
 save['linenum']=0
 
-async  function loadGame(gamename)
+const loadGame = async(function* (gamename)
 {
     return  ZipStore.loadZip(gamename);
-}
+})
 
 function get_image_width(img)
 {
@@ -627,7 +641,7 @@ function change_script(filename)
 
 }
 var iswait = false;
-async function waitkey()
+const waitkey = async(function *()
 {
     iswait=true;
     return new Promise((r,v)=>{
@@ -639,7 +653,8 @@ async function waitkey()
             }
         },100);
     });
-}
+})
+
 function split_parameter(str,command)
 {
     args=str.substring(command.length).split(',')
@@ -824,7 +839,7 @@ function measure_text(name)
      update_screen()
 } 
 
-async   function draw_onebyone(charlist, topleft, bottomright, color, name, redrawmesagebox=True)
+const draw_onebyone=async(   function* (charlist, topleft, bottomright, color, name, redrawmesagebox=True)
 {
 
     var delay_time=[0.1,0.07,0.04,0.02,0,0]
@@ -893,7 +908,7 @@ async   function draw_onebyone(charlist, topleft, bottomright, color, name, redr
             e32.ao_yield()
             end_time=time.time()
             if (end_time-start_time < delay_time[gameconfig['textspeed']]){
-                await e32.ao_sleep(delay_time[gameconfig['textspeed']]-end_time+start_time)
+                yield e32.ao_sleep(delay_time[gameconfig['textspeed']]-end_time+start_time)
             } 
         } 
         i++;
@@ -911,9 +926,9 @@ async   function draw_onebyone(charlist, topleft, bottomright, color, name, redr
     return textorigin
 
 }
+)
 
-
-async   function display_cursor(cursororigin, wait_for_vo=False)
+const display_cursor = async  ( function* (cursororigin, wait_for_vo=False)
 {
     var space=[0,1,3,5,6,5,3,1]
     start_time=time.clock()
@@ -947,13 +962,13 @@ async   function display_cursor(cursororigin, wait_for_vo=False)
         
          //console.log(cursororigin)  
          draw_image(temp_img,img_mask=None,img_origin=cursororigin)
-        await e32.ao_sleep(0.1)
+        yield e32.ao_sleep(0.1)
         i=(i+1)%len(space)
     }
      draw_image(back_img,"",img_origin=cursororigin)
-}
+})
 
-async  function SCROLL(length, bgfilename, startpos, endpos)
+const SCROLL=async (function* (length, bgfilename, startpos, endpos)
 {
     var need_draw_chara;
     if(chara_on && save['bg']==bgfilename)
@@ -965,7 +980,7 @@ async  function SCROLL(length, bgfilename, startpos, endpos)
         chara_on=False
         need_draw_chara=False 
     }
-    await BGLoad(0,bgfilename)
+    yield BGLoad(0,bgfilename)
 
     if(keyboard.is_down(key_codes.EScancode1))
     {
@@ -1027,8 +1042,9 @@ async  function SCROLL(length, bgfilename, startpos, endpos)
     staticimg['bg_img'].blit(staticimg['bg'],[endpos,(endpos[0]+screensize[0],endpos[1]+screensize[1])])
     e32.ao_yield()
 }
+) 
 
-async function message(charlist,name=None)
+const message = async( function* (charlist,name=None)
 {
     if(charlist=='')
     {
@@ -1039,11 +1055,11 @@ async function message(charlist,name=None)
 
      message_before(name)
 
-    textorigin=await draw_onebyone(charlist, consttextorigin, constbottomright, gameconfig['textcolor'], name)
+    textorigin=yield draw_onebyone(charlist, consttextorigin, constbottomright, gameconfig['textcolor'], name)
     console.log(textorigin)
-    await display_cursor(textorigin,True) 
+    yield display_cursor(textorigin,True) 
      message_after(charlist,name)
-}
+})
 
 function hexstr2color(string)
 {
@@ -1147,7 +1163,7 @@ function CHAResetPos(chaindex)
         }
     } 
 }
-async function CHAload(chaindex, chafilename)
+const CHAload = async (function* (chaindex, chafilename)
 {
     chara[chaindex]={}
     if(!(chaindex in save['chara']))
@@ -1172,11 +1188,11 @@ async function CHAload(chaindex, chafilename)
     }else{
         full_filename = unpack_file(chafilename,'charaformat')
         full_maskname = unpack_file(chafilename+'_mask','charaformat')
-        chara[chaindex]['chara_img']=await load_image(full_filename)
-        chara[chaindex]['chara_mask']=await load_image(full_maskname,None,None, is_mask=True)
+        chara[chaindex]['chara_img']=yield load_image(full_filename)
+        chara[chaindex]['chara_mask']=yield load_image(full_maskname,None,None, is_mask=True)
     }
     save['chara'][chaindex]['chara_visible']=False 
-}
+})
 
 function get_image_size(img){
     return [img.width,img.height]
@@ -1298,7 +1314,7 @@ function CHASetPos(chaindex,xpos,ypos=0,mode=5)
   
 
 //执行pymo脚本
-async   function ScriptParsePYMO()
+const ScriptParsePYMO = async  ( function* ()
 {
     var indexf=0
     while(running)
@@ -1343,7 +1359,7 @@ async   function ScriptParsePYMO()
             {
                 SetEVFlag(args[0]) 
             }
-            await  BGLoad(0,args[0],(parseFloat(args[3]),parseFloat(args[4])))
+            yield  BGLoad(0,args[0],(parseFloat(args[3]),parseFloat(args[4])))
              BGDisp(0,transition=args[1], speed=args[2])
             CHASetInvisible('a')
             continue
@@ -1353,7 +1369,7 @@ async   function ScriptParsePYMO()
         if(command.startsWith('#scroll '))
         {
             args=split_parameter(command,'#scroll ')
-            await SCROLL(parseInt(args[5]),args[0],startpos=[parseFloat(args[1]),parseFloat(args[2])],endpos=[parseFloat(args[3]),parseFloat(args[4])])
+            yield SCROLL(parseInt(args[5]),args[0],startpos=[parseFloat(args[1]),parseFloat(args[2])],endpos=[parseFloat(args[3]),parseFloat(args[4])])
             if(args[0].startsWith(gameconfig['cgprefix']))
             {
                 SetEVFlag(args[0])
@@ -1412,7 +1428,7 @@ async   function ScriptParsePYMO()
                     CHASetInvisible(args[i])
                     CHAResetPos(args[i])
                 }else{
-                    await CHAload(args[i],args[i+1])
+                    yield CHAload(args[i],args[i+1])
                     CHASetPos(args[i],str_percent2pos(args[i+2],bgsize[0]))
                     CHASetLayer(args[i],parseInt(args[i+3]))
                     CHASetVisible(args[i])
@@ -1438,7 +1454,7 @@ async   function ScriptParsePYMO()
                     { 
                         save['chara'][args[i]]={} 
                     }
-                    await CHAload(args[i],args[i+1]) 
+                    yield CHAload(args[i],args[i+1]) 
                     CHASetPos(args[i],str_percent2pos(args[i+2],bgsize[0]),str_percent2pos(args[i+3],bgsize[1]),int(args[0]))
                     CHASetLayer(args[i],int(args[i+4]))
                     CHASetVisible(args[i])
@@ -1548,7 +1564,7 @@ async   function ScriptParsePYMO()
          //waitkey
          if (command.startsWith('#waitkey'))
          {
-            await waitkey()
+            yield waitkey()
             continue
          } 
          
@@ -1571,9 +1587,9 @@ async   function ScriptParsePYMO()
             args=split_parameter(command,'#say ')
             if (len(args)==1)
             {
-               await  message(args[0])
+               yield  message(args[0])
             }else{
-               await  message(args[1],args[0])
+               yield  message(args[1],args[0])
             }  
             continue
          }   
@@ -1586,6 +1602,7 @@ async   function ScriptParsePYMO()
     }
 
 }
+)
 
 function set_font()
 {
@@ -1645,15 +1662,14 @@ function unpack_file(filename, filetype)
     }
     return '';
 }
-
-async function load_image(imgfilenamedata, width=None, height=None, is_mask=False)
+const load_image = async( function* (imgfilenamedata, width=None, height=None, is_mask=False)
 {
     if(typeof(imgfilenamedata) == typeof(""))
     {
         imgfilenamedata = gamedata.Zip[imgfilenamedata].compressed_data;
     }
     var myImage  = new MyImage();
-    await myImage.load(imgfilenamedata);
+    yield myImage.load(imgfilenamedata);
     if(width)
     {
         width=parseInt(width)
@@ -1696,6 +1712,7 @@ async function load_image(imgfilenamedata, width=None, height=None, is_mask=Fals
     myImage.resize(width ,height);
     return myImage;  
 }
+)
 
 function sortData(data)
 {
@@ -1760,7 +1777,7 @@ function CHADisp(transition='ALPHA',length=300)
     chara_on=True
 }
 
-async   function BGLoad(bgindex,bgfilename,percentorig)
+const BGLoad = async  ( function* (bgindex,bgfilename,percentorig)
 {  
     if(!percentorig)
     {
@@ -1779,7 +1796,7 @@ async   function BGLoad(bgindex,bgfilename,percentorig)
            
         } else{
             full_filenamedata = unpack_file(bgfilename,'bgformat')
-            staticimg['bg']= await  load_image(full_filenamedata)
+            staticimg['bg']= yield  load_image(full_filenamedata)
         }
     }
     save['bgpercentorig']=percentorig
@@ -1792,6 +1809,8 @@ async   function BGLoad(bgindex,bgfilename,percentorig)
         bgorigin=[(screensize[0]-get_image_width(staticimg['bg']))/2, (screensize[1]-get_image_height(staticimg['bg']))/2]
     } 
 }
+)
+
 function Load_system_images()
 {
     
@@ -1815,7 +1834,7 @@ function auto_save()
    
 
 ///加载游戏
-async function loadgame(){
+const loadgame  = async (function* (){
     // try{
         var params = {};
 
@@ -1829,7 +1848,7 @@ async function loadgame(){
         var gamename = params["game"];
         console.log("loading "+gamename);
         
-        gamedata= await loadGame(gamename);
+        gamedata= yield loadGame(gamename);
         console.log(gamedata);
 
         //游戏配置加载
@@ -1847,18 +1866,18 @@ async function loadgame(){
         staticimg['paragraph_img']=  new MyImage(screensize[0],screensize[1]) 
         staticimg['paragraph_img_mask']=  new MyImage(screensize[0],screensize[1]) 
 
-        staticimg['message_cursor']= await load_image('system/message_cursor.png', None, height=gameconfig['fontsize'])
-        staticimg['message_cursor_mask']= await  load_image('system/message_cursor_mask.png',None,  height=gameconfig['fontsize'], is_mask=True)
+        staticimg['message_cursor']= yield load_image('system/message_cursor.png', None, height=gameconfig['fontsize'])
+        staticimg['message_cursor_mask']= yield  load_image('system/message_cursor_mask.png',None,  height=gameconfig['fontsize'], is_mask=True)
         //#load option image
-        staticimg['menuimg']= await  load_image('system/menu.png')
+        staticimg['menuimg']= yield  load_image('system/menu.png')
 
         var msgbox='message'
-        staticimg['messagebox']=  await load_image('system/'+msgbox+'.png',width=screensize[0])
+        staticimg['messagebox']=  yield load_image('system/'+msgbox+'.png',width=screensize[0])
         var namebox="name"
-        staticimg['messagebox_mask']=  await load_image('system/'+msgbox+'_mask.png', width=screensize[0],None, is_mask=True)
+        staticimg['messagebox_mask']=  yield load_image('system/'+msgbox+'_mask.png', width=screensize[0],None, is_mask=True)
         //#load message name box
-        staticimg['message_name']= await  load_image('system/'+namebox+'.png',None,  height=gameconfig['fontsize']+12)
-        staticimg['message_name_mask']=  await load_image('system/'+namebox+'_mask.png',None,  height=gameconfig['fontsize']+12, is_mask=True)
+        staticimg['message_name']= yield  load_image('system/'+namebox+'.png',None,  height=gameconfig['fontsize']+12)
+        staticimg['message_name_mask']=  yield load_image('system/'+namebox+'_mask.png',None,  height=gameconfig['fontsize']+12, is_mask=True)
 
         chara={}
         cache={'bg':{},'chara':{},'vo':{},'bgm':{},'sel':None}
@@ -1882,7 +1901,7 @@ async function loadgame(){
         console.log(bgsize)
         var bgorigin=[(screensize[0]-gameconfig['imagesize'][0])/2, (screensize[1]-gameconfig['imagesize'][1])/2]
 
-        await  BGLoad(0,'logo1')  
+        yield  BGLoad(0,'logo1')  
           BGDisp(0, transition='BG_ALPHA', speed='BG_NORMAL')
         Load_system_images();
         var ret = load_pak_file("chara/chara.pak");
@@ -1892,7 +1911,7 @@ async function loadgame(){
         sepakfile=ret[0]
         seindex = ret[1]
         
-        await  BGLoad(0,'logo2')
+        yield  BGLoad(0,'logo2')
          BGDisp(0, transition='BG_ALPHA', speed='BG_NORMAL')
 
       
@@ -1911,7 +1930,7 @@ async function loadgame(){
         if(gameconfig['scripttype']=='mo2'){
 
         } if(gameconfig['scripttype']=='pymo'){
-            await ScriptParsePYMO();
+            yield ScriptParsePYMO();
         } 
     // }
     // catch(err)
@@ -1920,9 +1939,10 @@ async function loadgame(){
     //     alert(err);
     // }
 }
+)
 
-window.addEventListener("load",async () => { 
-    await loadgame();
+window.addEventListener("load", () => { 
+     loadgame();
 })
 
 
