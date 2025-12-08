@@ -29,7 +29,7 @@ mkdir dist-kaios\pymo
 
 REM 转译 JS 文件
 echo [3/4] Transpiling JavaScript for Firefox 48...
-call npx babel src --out-dir dist-kaios --config-file ./babel.kaios.json --ignore "src/game.js","src/*.min.js"
+call npx babel src --out-dir dist-kaios --config-file ./babel.kaios.json --ignore "src/*.min.js"
 
 REM 复制静态文件
 echo [4/4] Copying static files...
