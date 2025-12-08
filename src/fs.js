@@ -513,10 +513,11 @@ var fs = function() {
     syncStore();
   } 
   
-  myflushAll = function()
+  var myflushAll = function()
   {
 	  flushAll(); 
   }
+  window.myflushAll = myflushAll;
   
   window.addEventListener("οnbefοreunlοad", flushAll);
   function list(path) {
