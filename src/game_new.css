@@ -1,0 +1,1307 @@
+/* PyMO Web - 游戏页面样式 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0a0a0a;
+    font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+}
+
+#game-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    background: linear-gradient(135deg, #1a1a2e 0%, #0a0a0a 50%, #16213e 100%);
+}
+
+#game-canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    box-shadow: 0 0 40px rgba(0, 150, 255, 0.15),
+                0 0 80px rgba(100, 50, 200, 0.1);
+    border-radius: 4px;
+}
+
+/* 加载状态 */
+#loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(10, 10, 10, 0.95);
+    z-index: 100;
+    gap: 24px;
+}
+
+.loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(100, 150, 255, 0.2);
+    border-top-color: #6496ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: #8a9bb4;
+    font-size: 14px;
+    letter-spacing: 2px;
+}
+
+/* 错误信息 */
+#error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(180, 50, 50, 0.9);
+    color: #fff;
+    padding: 24px 32px;
+    border-radius: 8px;
+    font-size: 14px;
+    max-width: 80%;
+    text-align: center;
+    z-index: 101;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* 控制按钮 */
+#controls {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 50;
+}
+
+#game-container:hover #controls {
+    opacity: 1;
+}
+
+#controls button {
+    width: 40px;
+    height: 40px;
+    background: rgba(30, 30, 50, 0.8);
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    border-radius: 8px;
+    color: #aab;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#controls button:hover {
+    background: rgba(50, 60, 90, 0.9);
+    border-color: rgba(100, 150, 255, 0.6);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+#controls button:active {
+    transform: translateY(0);
+}
+
+/* 全屏模式 */
+#game-container:fullscreen {
+    background: #000;
+}
+
+#game-container:fullscreen #game-canvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* 触摸设备优化 */
+@media (pointer: coarse) {
+    #controls {
+        opacity: 1;
+    }
+    
+    #controls button {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+}
+
+/* 小屏幕适配 */
+@media (max-width: 768px) {
+    #controls {
+        top: 8px;
+        right: 8px;
+        gap: 6px;
+    }
+    
+    #controls button {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+}
+
+/* 选择框样式 */
+.selection-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 60;
+}
+
+.selection-item {
+    padding: 12px 48px;
+    background: rgba(20, 30, 50, 0.9);
+    border: 1px solid rgba(100, 150, 255, 0.4);
+    border-radius: 4px;
+    color: #dde;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 200px;
+    text-align: center;
+}
+
+.selection-item:hover,
+.selection-item.active {
+    background: rgba(40, 60, 100, 0.9);
+    border-color: rgba(100, 150, 255, 0.8);
+    color: #fff;
+    transform: scale(1.02);
+}
+
+.selection-item.selected {
+    color: #888;
+}
+
+/* 存档界面样式 */
+.save-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(15, 20, 35, 0.95);
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    border-radius: 12px;
+    padding: 24px;
+    z-index: 70;
+    min-width: 180px;
+    max-width: 95%;
+    max-height: 80%;
+    overflow-y: auto;
+}
+
+.save-modal-title {
+    font-size: 18px;
+    color: #aab;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+}
+
+.save-slots {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.save-slot {
+    padding: 12px;
+    background: rgba(30, 40, 60, 0.6);
+    border: 1px solid rgba(100, 150, 255, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.save-slot:hover,
+.save-slot.selected {
+    background: rgba(40, 55, 85, 0.8);
+    border-color: rgba(100, 150, 255, 0.5);
+}
+
+.save-slot.selected {
+    box-shadow: 0 0 10px rgba(100, 150, 255, 0.3);
+}
+
+.save-slot-thumb {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: #1a1a2e;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    object-fit: cover;
+}
+
+.save-slot-info {
+    font-size: 12px;
+    color: #8a9bb4;
+}
+
+.save-slot-empty {
+    color: #556;
+    font-style: italic;
+}
+
+/* 菜单样式 */
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+}
+
+/* 旋转模式下的覆盖层 */
+.menu-overlay.rotated-left {
+    transform: rotate(-90deg);
+    transform-origin: center center;
+    width: 100vh;
+    height: 100vw;
+}
+
+.menu-overlay.rotated-right {
+    transform: rotate(90deg);
+    transform-origin: center center;
+    width: 100vh;
+    height: 100vw;
+}
+
+.menu-panel {
+    background: rgba(15, 20, 35, 0.95);
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    border-radius: 12px;
+    padding: 32px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.menu-item {
+    padding: 12px 32px;
+    background: transparent;
+    border: 1px solid rgba(100, 150, 255, 0.2);
+    border-radius: 4px;
+    color: #aab;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.menu-item:hover,
+.menu-item.selected {
+    background: rgba(50, 70, 110, 0.5);
+    border-color: rgba(100, 150, 255, 0.5);
+    color: #fff;
+}
+
+.menu-item.selected {
+    background: rgba(60, 80, 130, 0.7);
+    box-shadow: 0 0 10px rgba(100, 150, 255, 0.3);
+}
+
+/* 设置面板样式 */
+.config-items {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.config-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.config-item label {
+    color: #8a9bb4;
+    width: 80px;
+    font-size: 14px;
+}
+
+.config-item input[type="range"] {
+    flex: 1;
+    height: 6px;
+    background: rgba(100, 150, 255, 0.2);
+    border-radius: 3px;
+    -webkit-appearance: none;
+}
+
+.config-item input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #6496ff;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.config-item input[type="range"].selected {
+    outline: 2px solid rgba(100, 150, 255, 0.5);
+    outline-offset: 4px;
+}
+
+.config-item input[type="range"].selected::-webkit-slider-thumb {
+    background: #7ab0ff;
+    box-shadow: 0 0 8px rgba(100, 150, 255, 0.6);
+}
+
+.config-value {
+    color: #6496ff;
+    font-size: 14px;
+    min-width: 24px;
+    text-align: center;
+}
+
+.config-divider {
+    height: 1px;
+    background: rgba(100, 150, 255, 0.2);
+    margin: 12px 0;
+}
+
+.config-toggle {
+    padding: 6px 16px;
+    background: rgba(100, 150, 255, 0.2);
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    border-radius: 4px;
+    color: #aab;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 60px;
+}
+
+.config-toggle:hover,
+.config-toggle.selected {
+    background: rgba(100, 150, 255, 0.3);
+    border-color: rgba(100, 150, 255, 0.5);
+    color: #fff;
+}
+
+.config-toggle.selected {
+    box-shadow: 0 0 8px rgba(100, 150, 255, 0.4);
+}
+
+.back-btn {
+    width: 100%;
+    margin-top: 16px;
+}
+
+/* 鉴赏系统样式 */
+.gallery-panel {
+    background: rgba(15, 20, 35, 0.95);
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    border-radius: 12px;
+    padding: 24px;
+    min-width: 400px;
+    max-width: 90%;
+    max-height: 85%;
+    overflow-y: auto;
+}
+
+.gallery-title {
+    font-size: 18px;
+    color: #aab;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.gallery-item {
+    aspect-ratio: 4/3;
+    background: rgba(30, 40, 60, 0.6);
+    border: 1px solid rgba(100, 150, 255, 0.2);
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gallery-item:hover {
+    border-color: rgba(100, 150, 255, 0.5);
+    transform: scale(1.02);
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.gallery-item.locked {
+    cursor: not-allowed;
+}
+
+.gallery-thumb-locked,
+.gallery-thumb-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #556;
+    font-size: 24px;
+}
+
+.gallery-back {
+    width: 100%;
+}
+
+/* CG 查看器 */
+.cg-viewer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+
+.cg-viewer img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+}
+
+.cg-viewer-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.cg-viewer-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* 音乐鉴赏 */
+.music-gallery {
+    min-width: 400px;
+}
+
+.music-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+}
+
+.music-item {
+    padding: 12px 16px;
+    display: flex;
+    gap: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 4px;
+}
+
+.music-item:hover {
+    background: rgba(100, 150, 255, 0.1);
+}
+
+.music-item.active {
+    background: rgba(100, 150, 255, 0.2);
+}
+
+.music-number {
+    color: #556;
+    font-family: monospace;
+}
+
+.music-name {
+    color: #aab;
+}
+
+.music-controls {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.music-btn {
+    width: 48px;
+    height: 48px;
+    background: rgba(30, 40, 60, 0.8);
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    border-radius: 50%;
+    color: #aab;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.music-btn:hover {
+    background: rgba(50, 70, 110, 0.8);
+    border-color: rgba(100, 150, 255, 0.5);
+    color: #fff;
+}
+
+/* Gallery 样式 */
+.gallery-panel {
+    background: rgba(10, 15, 30, 0.95);
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    border-radius: 12px;
+    padding: 16px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.gallery-title {
+    font-size: 18px;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(100, 150, 255, 0.3);
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    overflow-y: auto;
+    max-height: 60vh;
+    padding: 8px;
+}
+
+.gallery-item {
+    aspect-ratio: 4/3;
+    background: rgba(30, 40, 60, 0.8);
+    border: 2px solid rgba(100, 150, 255, 0.2);
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.gallery-item.selected {
+    border-color: #6496ff;
+    box-shadow: 0 0 12px rgba(100, 150, 255, 0.5);
+    transform: scale(1.05);
+}
+
+.gallery-item.locked {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.gallery-thumb-locked,
+.gallery-thumb-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #666;
+}
+
+.gallery-back {
+    margin-top: 12px;
+}
+
+.gallery-back.selected {
+    background: rgba(100, 150, 255, 0.3);
+    border-color: #6496ff;
+}
+
+/* CG 查看器 */
+.cg-viewer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cg-viewer img {
+    max-width: 95%;
+    max-height: 95%;
+    object-fit: contain;
+}
+
+.cg-viewer-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+/* 音乐列表项选中 */
+.music-item.selected {
+    background: rgba(100, 150, 255, 0.2);
+    border-color: #6496ff;
+}
+
+/* 结束画面 */
+.end-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+}
+
+.end-content {
+    text-align: center;
+    color: #fff;
+}
+
+.end-title {
+    font-size: 28px;
+    margin-bottom: 16px;
+    color: #6496ff;
+}
+
+.end-message {
+    font-size: 16px;
+    color: #aab;
+    margin-bottom: 32px;
+}
+
+.end-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+}
+
+.end-btn {
+    padding: 12px 28px;
+    background: rgba(30, 40, 70, 0.9);
+    border: 1px solid rgba(100, 150, 255, 0.3);
+    border-radius: 8px;
+    color: #aab;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.end-btn:hover,
+.end-btn.selected {
+    background: rgba(50, 70, 110, 0.9);
+    border-color: #6496ff;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(100, 150, 255, 0.3);
+}
+
+/* Toast 动画 */
+@keyframes toastFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.quick-toast {
+    animation: toastFadeIn 0.2s ease;
+}
+
+/* ==================== 小屏幕设备适配 (KaiOS 240x320) ==================== */
+@media screen and (max-width: 320px), screen and (max-height: 400px) {
+    html, body {
+        font-size: 12px;
+    }
+    
+    #game-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+    
+    #game-canvas {
+        border-radius: 0;
+        box-shadow: none;
+    }
+    
+    /* 控制按钮 - 小屏幕始终显示 */
+    #controls {
+        top: 4px;
+        right: 4px;
+        gap: 4px;
+        opacity: 1;
+    }
+    
+    #controls button {
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+    }
+    
+    /* 加载状态 */
+    .loading-spinner {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .loading-text {
+        font-size: 12px;
+    }
+    
+    /* 菜单覆盖层 */
+    .menu-overlay {
+        padding: 8px;
+    }
+    
+    /* 菜单面板 */
+    .menu-panel {
+        padding: 8px;
+        border-radius: 6px;
+        min-width: auto;
+        width: 100%;
+        max-width: 220px;
+    }
+    
+    .menu-title {
+        font-size: 14px;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+    }
+    
+    .menu-item {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    
+    /* 存档面板 */
+    .save-modal {
+        padding: 6px;
+        max-width: 95vw;
+        max-height: 85vh;
+        width: auto;
+    }
+    
+    .save-modal-title {
+        font-size: 13px;
+        padding: 6px;
+    }
+    
+    .save-slots {
+        max-height: 55vh;
+        gap: 4px;
+        padding: 2px;
+        overflow-y: auto;
+    }
+    
+    .save-slot {
+        padding: 4px;
+        gap: 4px;
+        flex-direction: row;
+    }
+    
+    .save-slot-thumb {
+        width: 36px;
+        height: 27px;
+        flex-shrink: 0;
+    }
+    
+    .save-slot-info {
+        font-size: 10px;
+        line-height: 1.3;
+        overflow: hidden;
+    }
+    
+    .save-slot-info div {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* 设置面板 */
+    .config-items {
+        gap: 6px;
+        max-height: 55vh;
+        overflow-y: auto;
+    }
+    
+    .config-item {
+        padding: 4px 0;
+        flex-wrap: wrap;
+    }
+    
+    .config-item label {
+        font-size: 11px;
+        flex: 1;
+        min-width: 60px;
+    }
+    
+    .config-item input[type="range"] {
+        width: 80px;
+    }
+    
+    .config-toggle {
+        padding: 3px 8px;
+        font-size: 10px;
+        min-width: 40px;
+    }
+    
+    .config-value {
+        font-size: 11px;
+        min-width: 20px;
+    }
+    
+    /* Gallery 鉴赏 */
+    .gallery-panel {
+        padding: 6px;
+        max-width: 95vw;
+        max-height: 85vh;
+        width: auto;
+    }
+    
+    .gallery-title {
+        font-size: 13px;
+        margin-bottom: 6px;
+        padding-bottom: 4px;
+    }
+    
+    .gallery-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 3px;
+        max-height: 50vh;
+        padding: 2px;
+        overflow-y: auto;
+    }
+    
+    .gallery-item {
+        border-width: 1px;
+        border-radius: 4px;
+    }
+    
+    .gallery-thumb-locked,
+    .gallery-thumb-placeholder {
+        font-size: 14px;
+    }
+    
+    .gallery-back {
+        margin-top: 8px;
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+    
+    /* CG 查看器 */
+    .cg-viewer-close {
+        width: 28px;
+        height: 28px;
+        font-size: 18px;
+        top: 4px;
+        right: 4px;
+    }
+    
+    /* 音乐列表 */
+    .music-gallery {
+        max-width: 220px;
+    }
+    
+    .music-list {
+        max-height: 40vh;
+    }
+    
+    .music-item {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+    
+    .music-number {
+        font-size: 11px;
+    }
+    
+    .music-controls {
+        gap: 8px;
+    }
+    
+    .music-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    /* 结束画面 */
+    .end-title {
+        font-size: 20px;
+        margin-bottom: 12px;
+    }
+    
+    .end-message {
+        font-size: 13px;
+        margin-bottom: 20px;
+    }
+    
+    .end-buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .end-btn {
+        padding: 10px 20px;
+        font-size: 13px;
+    }
+    
+    /* Toast */
+    .quick-toast {
+        padding: 6px 14px !important;
+        font-size: 11px !important;
+        top: 8px !important;
+    }
+    
+    /* 返回按钮统一样式 */
+    .back-btn {
+        padding: 8px 16px;
+        font-size: 12px;
+        margin-top: 8px;
+    }
+}
+
+/* 超小屏幕 (240x320) 进一步优化 */
+@media screen and (max-width: 250px), screen and (max-height: 350px) {
+    html {
+        font-size: 10px;
+    }
+    
+    .menu-overlay {
+        padding: 0;
+    }
+    
+    .menu-panel,
+    .save-modal,
+    .gallery-panel {
+        max-width: 230px !important;
+        min-width: 0 !important;
+        max-height: 95% !important;
+        width: 95% !important;
+        height: auto !important;
+        border-radius: 4px;
+        border: 1px solid rgba(100, 150, 255, 0.3);
+        padding: 4px !important;
+        margin: 0;
+        box-sizing: border-box;
+    }
+    
+    /* 菜单 */
+    .menu-panel {
+        height: auto;
+        max-height: 90% !important;
+    }
+    
+    .menu-title {
+        font-size: 12px;
+        padding: 6px;
+        margin-bottom: 4px;
+    }
+    
+    .menu-item {
+        padding: 8px 10px;
+        font-size: 11px;
+    }
+    
+    /* 存档 */
+    .save-modal {
+        display: flex;
+        flex-direction: column;
+        min-width: 0 !important;
+    }
+    
+    .save-modal-title {
+        font-size: 12px;
+        padding: 4px;
+        flex-shrink: 0;
+    }
+    
+    .save-slots {
+        flex: 1;
+        display: flex !important;
+        flex-direction: column !important;
+        max-height: 70vh;
+        overflow-y: auto;
+        gap: 3px;
+        padding: 2px;
+    }
+    
+    .save-slot {
+        padding: 3px;
+        gap: 4px;
+        min-height: 0;
+        flex-shrink: 0;
+    }
+    
+    .save-slot-thumb {
+        width: 32px;
+        height: 24px;
+        flex-shrink: 0;
+        border-radius: 2px;
+    }
+    
+    .save-slot-info {
+        font-size: 9px;
+        line-height: 1.2;
+        overflow: hidden;
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .save-slot-info div {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .save-slot-empty {
+        font-size: 9px;
+    }
+    
+    .back-btn {
+        padding: 6px 12px;
+        font-size: 10px;
+        margin-top: 4px;
+        flex-shrink: 0;
+    }
+    
+    /* CG 鉴赏 */
+    .gallery-panel {
+        display: flex;
+        flex-direction: column;
+        min-width: 0 !important;
+    }
+    
+    .gallery-title {
+        font-size: 12px;
+        padding: 4px;
+        margin-bottom: 4px;
+        flex-shrink: 0;
+    }
+    
+    .gallery-grid {
+        flex: 1;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 12px !important;
+        max-height: 65vh;
+        overflow-y: auto;
+        padding: 8px;
+        width: 100%;
+        justify-content: center;
+        align-content: flex-start;
+    }
+    
+    .gallery-item {
+        width: 80px !important;
+        height: 60px !important;
+        flex-shrink: 0;
+        border-radius: 2px;
+        overflow: hidden;
+    }
+    
+    .gallery-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    
+    .gallery-item.selected {
+        transform: none;
+        box-shadow: 0 0 0 2px #6496ff;
+    }
+    
+    .gallery-thumb-locked,
+    .gallery-thumb-placeholder {
+        font-size: 12px;
+    }
+    
+    .gallery-back {
+        margin-top: 4px;
+        padding: 6px 12px;
+        font-size: 10px;
+        flex-shrink: 0;
+    }
+    
+    /* 设置 */
+    .config-items {
+        gap: 4px;
+        max-height: 65vh;
+        overflow-y: auto;
+    }
+    
+    .config-item {
+        padding: 3px 0;
+        flex-wrap: wrap;
+        gap: 4px !important;
+    }
+    
+    .config-item label {
+        font-size: 10px;
+        width: 50px !important;
+        min-width: 50px;
+        flex-shrink: 0;
+    }
+    
+    .config-item input[type="range"] {
+        width: 50px !important;
+        flex: 0 0 50px !important;
+        height: 16px;
+    }
+    
+    .config-toggle {
+        padding: 2px 4px;
+        font-size: 8px;
+        min-width: 30px;
+    }
+    
+    .config-value {
+        font-size: 9px;
+        min-width: 16px;
+    }
+    
+    .config-divider {
+        margin: 4px 0;
+    }
+    
+    /* 结束画面 */
+    .end-content {
+        padding: 16px;
+    }
+    
+    .end-title {
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+    
+    .end-message {
+        font-size: 11px;
+        margin-bottom: 16px;
+    }
+    
+    .end-btn {
+        padding: 8px 16px;
+        font-size: 11px;
+    }
+    
+    /* CG 查看器 */
+    .cg-viewer-close {
+        width: 24px;
+        height: 24px;
+        font-size: 16px;
+        top: 2px;
+        right: 2px;
+    }
+}
+
+/* 屏幕旋转时的面板样式 */
+.menu-overlay.rotated-left,
+.menu-overlay.rotated-right {
+    /* 旋转后交换宽高概念 */
+}
+
+.menu-overlay.rotated-left .menu-panel,
+.menu-overlay.rotated-left .save-modal,
+.menu-overlay.rotated-left .gallery-panel,
+.menu-overlay.rotated-right .menu-panel,
+.menu-overlay.rotated-right .save-modal,
+.menu-overlay.rotated-right .gallery-panel {
+    max-width: 95%;
+    max-height: 95%;
+}
+
+.menu-overlay.rotated-left .save-slots,
+.menu-overlay.rotated-right .save-slots {
+    max-height: 60vh;
+}
+
+.menu-overlay.rotated-left .gallery-grid,
+.menu-overlay.rotated-right .gallery-grid {
+    max-height: 55vh;
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.menu-overlay.rotated-left .config-items,
+.menu-overlay.rotated-right .config-items {
+    max-height: 55vh;
+    overflow-y: auto;
+}
+

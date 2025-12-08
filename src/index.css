@@ -1,156 +1,637 @@
-#menu
-{
-    position:fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    background: rgba(0,0,0,.3); 
+/* PyMO Web - 游戏列表页面样式 */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-#alertDialog
-{
-    position:fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    right: 0;
-    background: rgba(0,0,0,.3); 
+:root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-card: #1a1a25;
+    --bg-hover: #252535;
+    --text-primary: #e8e8f0;
+    --text-secondary: #8a8a9a;
+    --accent: #6496ff;
+    --accent-hover: #7aa6ff;
+    --danger: #e85050;
+    --border: rgba(100, 150, 255, 0.15);
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-#alertcontent
-{
-    background: #fff;
+html, body {
+    width: 100%;
+    min-height: 100%;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Microsoft YaHei', 'PingFang SC', -apple-system, sans-serif;
+    line-height: 1.6;
+}
+
+body {
+    background: 
+        radial-gradient(ellipse at 20% 0%, rgba(100, 150, 255, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 100%, rgba(150, 100, 255, 0.06) 0%, transparent 50%),
+        var(--bg-primary);
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px;
+    padding-bottom: 60px;
+}
+
+/* 头部 */
+.header {
+    text-align: center;
+    padding: 40px 0 32px;
+}
+
+.logo {
+    font-size: 32px;
+    font-weight: 300;
+    letter-spacing: 4px;
+    color: var(--text-primary);
+}
+
+.logo span {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.subtitle {
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+
+/* 工具栏 */
+.toolbar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent) 0%, #5080e0 100%);
+    border-color: transparent;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--accent-hover) 0%, #6090f0 100%);
+    border-color: transparent;
+}
+
+.btn-icon {
+    font-size: 16px;
+}
+
+/* 游戏列表 */
+.game-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.game-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 0 3px rgb(0 0 0 / 20%); 
-    border-radius: 10px 10px 0 0; 
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.game-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow), 0 0 20px rgba(100, 150, 255, 0.1);
+}
+
+.game-card.focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(100, 150, 255, 0.3);
+}
+
+.game-card-inner {
+    display: flex;
+    padding: 16px;
+    gap: 16px;
+    align-items: center;
+}
+
+.game-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    background: var(--bg-secondary);
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.game-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.game-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.game-name {
+    font-size: 12px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.game-error {
+    color: var(--danger);
+    font-size: 12px;
+}
+
+/* 加载状态 */
+.loading {
+    grid-column: 1 / -1;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 60px 0;
+    color: var(--text-secondary);
+}
+
+.loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-size {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    font-size: 18px;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.empty-state p {
+    font-size: 14px;
+}
+
+/* 模态框 */
+.modal {
     position: fixed;
-    bottom: 30px;
-    left: 0px;
-    right: 0px;
-    min-height: 110px;
-}
-
-
-#alertheader{
-    justify-content: center;
-    font-size: 16px;
-    padding: 7px 0;
-    color: #000; 
-    flex-direction: row;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
     display: flex;
-    box-sizing: border-box;
-    outline: 0; 
-}
-
-#alerttext
-{
+    align-items: center;
     justify-content: center;
-    font-size: 16px;
-    padding: 7px 3px;
-    color: #000; 
-    flex-direction: row;
-    display: flex;
-    max-height: 220px;
-    overflow:scroll;
-    box-sizing: border-box;
-    outline: 0; 
+    z-index: 100;
+    padding: 20px;
 }
 
-#menucontent{ 
-    background: #fff;
+.modal-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    min-width: 300px;
+    max-width: 90%;
+    max-height: 80%;
     overflow: hidden;
-    box-shadow: 0 0 3px rgb(0 0 0 / 20%); 
-    border-radius: 10px 10px 0 0; 
+    animation: modalIn 0.2s ease;
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal-small {
+    max-width: 360px;
+}
+
+.modal-header {
+    padding: 16px 20px;
+    font-size: 16px;
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    background: linear-gradient(135deg, rgba(100, 150, 255, 0.1) 0%, transparent 100%);
+    text-align: center;
+    letter-spacing: 2px;
+}
+
+.modal-body {
+    padding: 0;
+    max-height: 320px;
+    overflow-y: auto;
+    color: var(--text-secondary);
+    line-height: 1.8;
+}
+
+.modal-body.with-padding {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 12px 20px;
     display: flex;
-    flex-direction: column;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid var(--border);
+}
+
+/* 菜单项 */
+.menuitem {
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.menuitem:last-child {
+    border-bottom: none;
+}
+
+.menuitem:hover,
+.menuitem.focus {
+    background: linear-gradient(90deg, rgba(100, 150, 255, 0.15) 0%, transparent 100%);
+    color: var(--accent);
+    padding-left: 24px;
+}
+
+.menuitem.focus {
+    background: linear-gradient(90deg, rgba(100, 150, 255, 0.25) 0%, rgba(100, 150, 255, 0.05) 100%);
+    border-left: 3px solid var(--accent);
+}
+
+.menuitem-icon {
+    font-size: 16px;
+    width: 24px;
+    text-align: center;
+}
+
+/* 右键菜单 */
+.context-menu {
     position: fixed;
-    bottom: 30px;
-    left: 0px;
-    right: 0px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 0;
+    min-width: 160px;
+    z-index: 200;
+    box-shadow: var(--shadow);
 }
 
-#menuheader{
-    justify-content: center;
-    font-size: 16px;
-    padding: 7px 0;
-    color: #000; 
-    flex-direction: row;
-    display: flex;
-    box-sizing: border-box;
-    outline: 0; 
+.context-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+    transition: background 0.15s;
 }
 
-#applist{
-	padding-bottom: 40px;
-	margin-bottom: 40px;
+.context-item:hover {
+    background: var(--bg-hover);
 }
 
-.menuitem{
-    text-align: left;
-    font-size: 16px;
-    color: #000;
-    padding: 7px 24px;
-}
-
-.listitem{
-    text-align: left;
-    font-size: 16px;
-    color: #000;
-    padding: 12px;
-    display:flex;
-    align-items:center;
-}
-
-.listitem.focus{
-    background: rgba(205,61,61,.2);
-    color: #cd3d3d;
-}
-
-.gameicon{ 
-	 position: absolute;
-	 width:32px;
-	 height: 32px; 
-} 
-.listtext{ 
-	padding: 0px 0px 0px 46px; 
-}
-
-.menuitem.focus{
-    background: rgba(205,61,61,.2);
-    color: #cd3d3d;
-}
-
+/* 底部软键（KaiOS） */
 #softkeys {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 30px;
-    background: #dadada;
-    font-size: 14pt;
-    z-index: 200;
-  }
-  
-  #softkeyleft{
-      position: absolute;
-      left: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-  }
-  
-  #softkeyright{
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-  }
-  
-  #softkeycenter{
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%,-50%);
+    height: 36px;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    z-index: 50;
+}
+
+#softkeyleft,
+#softkeycenter,
+#softkeyright {
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+#softkeyleft:hover,
+#softkeycenter:hover,
+#softkeyright:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* 响应式 */
+@media (max-width: 600px) {
+    .container {
+        padding: 16px;
+        padding-bottom: 50px;
+    }
+    
+    .header {
+        padding: 24px 0;
+    }
+    
+    .logo {
+        font-size: 24px;
+    }
+    
+    .toolbar {
+        flex-direction: column;
+    }
+    
+    .btn {
+        justify-content: center;
+    }
+    
+    .game-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* KaiOS 小屏幕适配 */
+@media (max-width: 320px) {
+    html, body {
+        font-size: 12px;
+    }
+    
+    .container {
+        padding: 8px;
+        padding-bottom: 40px;
+    }
+    
+    .header {
+        padding: 12px 0;
+    }
+    
+    .logo {
+        font-size: 18px;
+        letter-spacing: 2px;
+    }
+    
+    .subtitle {
+        display: none;
+    }
+    
+    .toolbar {
+        margin-bottom: 8px;
+        gap: 8px;
+    }
+    
+    .btn {
+        padding: 8px 12px;
+        font-size: 12px;
+        border-radius: 6px;
+    }
+    
+    .btn-icon {
+        font-size: 14px;
+    }
+    
+    .game-list {
+        gap: 8px;
+    }
+    
+    .game-card {
+        border-radius: 8px;
+    }
+    
+    .game-card-inner {
+        padding: 10px;
+        gap: 10px;
+    }
+    
+    .game-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+    }
+    
+    .game-title {
+        font-size: 13px;
+        -webkit-line-clamp: 1;
+    }
+    
+    .game-name {
+        font-size: 11px;
+    }
+    
+    /* 模态框 */
+    .modal {
+        padding: 8px;
+    }
+    
+    .modal-content {
+        min-width: auto;
+        max-width: 100%;
+        border-radius: 8px;
+    }
+    
+    .modal-header {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+    
+    .modal-body {
+        padding: 0;
+        max-height: 200px;
+    }
+    
+    .modal-footer {
+        padding: 8px 12px;
+        gap: 8px;
+    }
+    
+    .modal-footer .btn {
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+    
+    /* 菜单项 */
+    .menuitem {
+        padding: 12px 14px;
+        font-size: 13px;
+        gap: 10px;
+    }
+    
+    .menuitem-icon {
+        font-size: 14px;
+        width: 20px;
+    }
+    
+    /* 右键菜单 */
+    .context-menu {
+        min-width: 140px;
+        padding: 6px 0;
+    }
+    
+    .context-item {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    
+    /* 软键 */
+    #softkeys {
+        height: 32px;
+        font-size: 12px;
+        padding: 0 12px;
+    }
+    
+    /* 加载 */
+    .loading-spinner {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .loading span {
+        font-size: 12px;
+    }
+    
+    /* 空状态 */
+    .empty-state {
+        padding: 40px 16px;
+    }
+    
+    .empty-icon {
+        font-size: 48px;
+    }
+    
+    .empty-state h3 {
+        font-size: 16px;
+    }
+    
+    .empty-state p {
+        font-size: 12px;
+    }
+}
+
+/* 超小屏幕 240x320 */
+@media (max-width: 250px) {
+    .header {
+        padding: 8px 0;
+    }
+    
+    .logo {
+        font-size: 16px;
+    }
+    
+    .toolbar {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        flex: 1;
+        min-width: 0;
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+    
+    .btn-icon {
+        display: none;
+    }
+    
+    .game-card-inner {
+        padding: 8px;
+        gap: 8px;
+    }
+    
+    .game-icon {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .game-title {
+        font-size: 12px;
+    }
+    
+    .modal-content {
+        border-radius: 0;
+        max-height: 90vh;
+    }
+    
+    .menuitem {
+        padding: 10px 12px;
+        font-size: 12px;
+    }
 }

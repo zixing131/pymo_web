@@ -1,0 +1,18 @@
+{
+  "name": "pymo-web",
+  "version": "1.0.0",
+  "description": "PyMO Visual Novel Engine for Web",
+  "scripts": {
+    "build": "babel src -d dist --presets=@babel/preset-env",
+    "build:kaios": "babel src -d dist-kaios --config-file ./babel.kaios.json"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.23.0",
+    "@babel/core": "^7.23.0",
+    "@babel/preset-env": "^7.23.0"
+  },
+  "browserslist": [
+    "Firefox >= 48"
+  ]
+}
+

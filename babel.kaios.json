@@ -1,0 +1,11 @@
+{
+  "presets": [
+    ["@babel/preset-env", {
+      "targets": {
+        "firefox": "48"
+      },
+      "useBuiltIns": false
+    }]
+  ]
+}
+

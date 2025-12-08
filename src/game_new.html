@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>PyMO Web</title>
+    <link rel="stylesheet" href="game_new.css">
+    <!-- Polyfills for Firefox 48 / KaiOS -->
+    <script src="./polyfill.js"></script>
+    <script src="./regenerator-runtime.min.js"></script>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas" width="540" height="360"></canvas>
+        
+        <div id="loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">加载中...</div>
+        </div>
+        
+        <div id="error" style="display: none;"></div>
+        
+        <!-- 控制按钮 -->
+        <div id="controls">
+            <button id="btn-menu" title="菜单">☰</button>
+            <button id="btn-fullscreen" title="全屏">⛶</button>
+        </div>
+    </div>
+
+    <!-- 依赖库 -->
+    <script src="./jszip.min.js"></script>
+    
+    <!-- ZIP 文件处理 -->
+    <script src="zipfile.js"></script>
+    
+    <!-- 工具模块 -->
+    <script src="utils/common.js"></script>
+    
+    <!-- 图形模块 -->
+    <script src="graphics/canvas.js"></script>
+    <script src="graphics/graphics.js"></script>
+    
+    <!-- 音频模块 -->
+    <script src="audio/audio.js"></script>
+    
+    <!-- 核心模块 -->
+    <script src="core/config.js"></script>
+    <script src="core/variable.js"></script>
+    <script src="core/script.js"></script>
+    <script src="core/save.js"></script>
+    <script src="core/engine.js"></script>
+    
+    <!-- UI 模块 -->
+    <script src="ui/selection.js"></script>
+    <script src="ui/menu.js"></script>
+    <script src="ui/gallery.js"></script>
+    
+    <!-- 主入口 -->
+    <script src="main.js"></script>
+</body>
+</html>
+
