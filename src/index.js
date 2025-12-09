@@ -31,21 +31,30 @@ try {
         // 优先级：selectedGame > nowfocus > .game-card.focus
         if (selectedGame) {
             gamename = selectedGame.name;
+            console.log('[opengame] Using selectedGame:', gamename);
         } else if (nowfocus && nowfocus.dataset.gamename) {
             gamename = nowfocus.dataset.gamename;
+            console.log('[opengame] Using nowfocus:', gamename, nowfocus);
         } else {
             // 检查焦点系统的 focus 类
             const focusedCard = document.querySelector('.game-card.focus');
             if (focusedCard && focusedCard.dataset.gamename) {
                 gamename = focusedCard.dataset.gamename;
+                console.log('[opengame] Using focusedCard:', gamename, focusedCard);
             }
         }
         
         if (!gamename) {
+            console.warn('[opengame] No game selected!', {
+                selectedGame,
+                nowfocus,
+                focusedCard: document.querySelector('.game-card.focus')
+            });
             showDialog("提示", "请先选择一个游戏！");
             return;
         }
         
+        console.log('[opengame] Starting game:', gamename);
         myopengame(gamename);
     }
 
@@ -643,7 +652,8 @@ try {
         }
         
         // Enter 键启动游戏
-        if (nowfocus || document.querySelector(".game-card.focus")) {
+        // 优先级：selectedGame > nowfocus > .game-card.focus
+        if (selectedGame || nowfocus || document.querySelector(".game-card.focus")) {
             opengame();
         }
     }
