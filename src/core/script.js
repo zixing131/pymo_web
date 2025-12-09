@@ -26,25 +26,34 @@ class ScriptParser {
      * @param {string} scriptName - 脚本名称（不含扩展名）
      */
     async loadScript(scriptName) {
-        this.scriptName = scriptName;
+        // 确保 scriptName 是字符串类型（配置可能解析为数字）
+        this.scriptName = String(scriptName);
         
         // 从游戏数据加载脚本
-        const scriptPath = `script/${scriptName}.txt`;
+        const scriptPath = `script/${this.scriptName}.txt`;
         let scriptData;
         
         try {
             scriptData = this.engine.gameData.Zip[scriptPath]?.compressed_data;
             if (!scriptData) {
                 // 尝试大写
-                scriptData = this.engine.gameData.Zip[`script/${scriptName.toUpperCase()}.txt`]?.compressed_data;
+                scriptData = this.engine.gameData.Zip[`script/${this.scriptName.toUpperCase()}.txt`]?.compressed_data;
+            }
+            // 如果还是找不到，尝试补零（如 "1" -> "01"）
+            if (!scriptData && /^\d+$/.test(this.scriptName)) {
+                const paddedName = this.scriptName.padStart(2, '0');
+                scriptData = this.engine.gameData.Zip[`script/${paddedName}.txt`]?.compressed_data;
+                if (scriptData) {
+                    this.scriptName = paddedName;
+                }
             }
         } catch (e) {
-            console.error(`Failed to load script: ${scriptName}`, e);
+            console.error(`Failed to load script: ${this.scriptName}`, e);
             return false;
         }
 
         if (!scriptData) {
-            console.error(`Script not found: ${scriptName}`);
+            console.error(`Script not found: ${this.scriptName}`);
             return false;
         }
 
@@ -87,6 +96,7 @@ class ScriptParser {
             const line = this.lines[i].trim();
             if (line === `#label ${labelName}`) {
                 this.currentLine = i + 1;
+                console.log(`[Script] gotoLabel: ${labelName}, new line: ${this.currentLine}, total lines: ${this.lines.length}`);
                 return true;
             }
         }
@@ -96,6 +106,7 @@ class ScriptParser {
             const line = this.lines[i].trim();
             if (line === `#label ${labelName}`) {
                 this.currentLine = i + 1;
+                console.log(`[Script] gotoLabel: ${labelName}, new line: ${this.currentLine}, total lines: ${this.lines.length}`);
                 return true;
             }
         }
@@ -103,6 +114,7 @@ class ScriptParser {
         // 使用预建立的索引
         if (this.labels[labelName] !== undefined) {
             this.currentLine = this.labels[labelName] + 1;
+            console.log(`[Script] gotoLabel: ${labelName}, new line: ${this.currentLine}, total lines: ${this.lines.length}`);
             return true;
         }
         
@@ -558,6 +570,7 @@ class ScriptParser {
     
     cmd_goto(args) {
         const labelName = args[0];
+        console.log('[Script] #goto:', labelName);
         this.gotoLabel(labelName);
     }
 
@@ -574,7 +587,11 @@ class ScriptParser {
         const condition = fullExpr.substring(0, gotoIndex).trim();
         const labelName = fullExpr.substring(gotoIndex + 6).trim();
         
-        if (this.engine.variables.evaluate(condition)) {
+        const conditionResult = this.engine.variables.evaluate(condition);
+        console.log('[Script] #if condition:', condition, 'result:', conditionResult, 'FSEL:', this.engine.variables.get('FSEL'));
+        
+        if (conditionResult) {
+            console.log('[Script] #if goto:', labelName);
             this.gotoLabel(labelName);
         }
     }
@@ -641,8 +658,12 @@ class ScriptParser {
         const color = args[5 + choiceNum] || '#ffffff';
         const initPos = parseInt(args[6 + choiceNum]) || 0;
         
+        console.log('[Script] #select_text:', { choiceNum, choices, x1, y1, x2, y2, color, initPos });
+        
         const result = await this.engine.ui.showTextSelection(choices, x1, y1, x2, y2, color, initPos);
+        console.log('[Script] #select_text result:', result);
         this.engine.variables.set('FSEL', result);
+        console.log('[Script] FSEL set to:', this.engine.variables.get('FSEL'));
     }
 
     async cmd_select_var(args) {

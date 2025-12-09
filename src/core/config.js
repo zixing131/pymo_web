@@ -83,7 +83,16 @@ class ConfigManager {
             });
         }
         
-        // 单值
+        // 字符串类型的配置项（保持原样，不转换为数字）
+        const stringKeys = ['startscript', 'gametitle', 'scripttype', 'platform', 
+                           'bgformat', 'charaformat', 'charamaskformat', 'bgmformat', 
+                           'seformat', 'voiceformat', 'cgprefix', 'textcolor'];
+        
+        if (stringKeys.includes(key)) {
+            return values[0];
+        }
+        
+        // 单值：尝试解析为数字，如果失败则保持字符串
         const value = values[0];
         const num = parseInt(value);
         return isNaN(num) ? value : num;

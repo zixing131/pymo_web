@@ -150,8 +150,9 @@ function setupCanvasScaling() {
     }
     
     function updateScale() {
-        const containerWidth = container.clientWidth;
-        const containerHeight = container.clientHeight;
+        // 使用 window.innerWidth/innerHeight 获取实际视口尺寸（iPhone上更准确）
+        const containerWidth = window.innerWidth || container.clientWidth;
+        const containerHeight = window.innerHeight || container.clientHeight;
         let canvasWidth = canvas.width;
         let canvasHeight = canvas.height;
         
@@ -196,7 +197,17 @@ function setupCanvasScaling() {
     }
     
     window.addEventListener('resize', updateScale);
+    
+    // 初始更新（延迟以确保视口尺寸稳定，特别是iPhone上）
     updateScale();
+    // 延迟再次更新，确保在iPhone上正确显示
+    setTimeout(() => {
+        updateScale();
+    }, 100);
+    // 再延迟一次，确保地址栏隐藏后也能正确显示
+    setTimeout(() => {
+        updateScale();
+    }, 500);
     
     // 返回更新函数，供设置改变时调用
     return updateScale;
@@ -209,9 +220,16 @@ function toggleScreenRotation() {
     screenRotation.enabled = !screenRotation.enabled;
     saveRotationSettings();
     
-    // 重新计算缩放
+    // 重新计算缩放（添加延迟确保DOM更新完成）
     if (window.updateCanvasScale) {
+        // 立即更新一次
         window.updateCanvasScale();
+        // 延迟再次更新，确保在iPhone上正确显示
+        setTimeout(() => {
+            if (window.updateCanvasScale) {
+                window.updateCanvasScale();
+            }
+        }, 100);
     }
     
     return screenRotation.enabled;
@@ -227,7 +245,14 @@ function setRotationDirection(direction) {
         saveRotationSettings();
         
         if (window.updateCanvasScale) {
+            // 立即更新一次
             window.updateCanvasScale();
+            // 延迟再次更新，确保在iPhone上正确显示
+            setTimeout(() => {
+                if (window.updateCanvasScale) {
+                    window.updateCanvasScale();
+                }
+            }, 100);
         }
     }
 }
@@ -564,7 +589,37 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateCanvasScale = setupCanvasScaling();
     setupKeyboardControls();
     setupControlButtons();
-    initGame();
+    
+    // 延迟初始化游戏，确保Canvas缩放已正确计算（特别是iPhone上）
+    setTimeout(() => {
+        initGame();
+        // 游戏初始化后再次更新缩放，确保Canvas尺寸已设置
+        if (window.updateCanvasScale) {
+            setTimeout(() => {
+                window.updateCanvasScale();
+            }, 100);
+        }
+    }, 200);
+});
+
+// 窗口完全加载后再次更新缩放（确保iPhone上地址栏隐藏后正确显示）
+window.addEventListener('load', () => {
+    if (window.updateCanvasScale) {
+        setTimeout(() => {
+            window.updateCanvasScale();
+        }, 300);
+    }
+});
+
+// 监听窗口resize事件，延迟更新（处理iPhone上地址栏显示/隐藏）
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    if (window.updateCanvasScale) {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            window.updateCanvasScale();
+        }, 150);
+    }
 });
 
 // 页面关闭前保存全局数据

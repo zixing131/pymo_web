@@ -13,6 +13,53 @@ class SelectionSystem {
     }
 
     /**
+     * 计算触摸/点击坐标（考虑Canvas旋转和缩放）
+     * @private
+     */
+    _calculateCanvasCoordinates(clientX, clientY) {
+        const canvas = this.engine.graphics.canvas;
+        const rect = canvas.getBoundingClientRect();
+        
+        // 检查是否启用旋转
+        if (typeof screenRotation !== 'undefined' && screenRotation.enabled) {
+            // Canvas被旋转了，需要反向计算坐标
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // 相对于旋转中心的坐标
+            const relX = clientX - centerX;
+            const relY = clientY - centerY;
+            
+            // 根据旋转方向反向计算
+            let x, y;
+            if (screenRotation.direction === 'left') {
+                // 左转90度：x' = y, y' = -x
+                x = -relY;
+                y = relX;
+            } else {
+                // 右转90度：x' = -y, y' = x
+                x = relY;
+                y = -relX;
+            }
+            
+            // 转换回Canvas坐标系（考虑缩放）
+            // 旋转后，Canvas的宽高被交换了
+            const scale = Math.min(rect.width / canvas.height, rect.height / canvas.width);
+            x = (x / scale) + canvas.width / 2;
+            y = (y / scale) + canvas.height / 2;
+            
+            return { x, y };
+        } else {
+            // 未旋转，直接计算
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (clientX - rect.left) * scaleX;
+            const y = (clientY - rect.top) * scaleY;
+            return { x, y };
+        }
+    }
+
+    /**
      * 显示选择支（#sel）
      * @param {string[]} choices - 选项文本数组
      * @param {string} hintPic - 提示图片（可选）
@@ -142,15 +189,26 @@ class SelectionSystem {
                 }
             };
             
-            // 鼠标/触摸点击事件
-            this.clickHandler = (e) => {
-                const canvas = this.engine.graphics.canvas;
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
+            // 统一的点击/触摸处理函数
+            const handlePointer = (e) => {
+                // 获取坐标（支持鼠标和触摸）
+                let clientX, clientY;
+                if (e.touches && e.touches.length > 0) {
+                    // 触摸事件
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    // touchend 事件
+                    clientX = e.changedTouches[0].clientX;
+                    clientY = e.changedTouches[0].clientY;
+                } else {
+                    // 鼠标事件
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
                 
-                const x = (e.clientX - rect.left) * scaleX;
-                const y = (e.clientY - rect.top) * scaleY;
+                // 计算Canvas坐标（考虑旋转和缩放）
+                const { x, y } = this._calculateCanvasCoordinates(clientX, clientY);
                 
                 // 检测点击了哪个选项
                 for (const area of this._optionAreas) {
@@ -166,9 +224,17 @@ class SelectionSystem {
                 }
             };
             
+            this.clickHandler = handlePointer;
+            this.touchHandler = (e) => {
+                e.preventDefault(); // 防止默认行为（如滚动）
+                handlePointer(e);
+            };
+            
             console.log('[Selection] showSelection active, choices:', choices);
             document.addEventListener('keydown', this.keyHandler, true);  // 使用捕获阶段
-            this.engine.graphics.canvas.addEventListener('click', this.clickHandler);
+            const canvas = this.engine.graphics.canvas;
+            canvas.addEventListener('click', this.clickHandler);
+            canvas.addEventListener('touchend', this.touchHandler, { passive: false });
         });
     }
 
@@ -269,15 +335,26 @@ class SelectionSystem {
                 }
             };
             
-            // 鼠标/触摸点击事件
-            this.clickHandler = (e) => {
-                const canvas = this.engine.graphics.canvas;
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
+            // 统一的点击/触摸处理函数
+            const handlePointer = (e) => {
+                // 获取坐标（支持鼠标和触摸）
+                let clientX, clientY;
+                if (e.touches && e.touches.length > 0) {
+                    // 触摸事件
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    // touchend 事件
+                    clientX = e.changedTouches[0].clientX;
+                    clientY = e.changedTouches[0].clientY;
+                } else {
+                    // 鼠标事件
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
                 
-                const x = (e.clientX - rect.left) * scaleX;
-                const y = (e.clientY - rect.top) * scaleY;
+                // 计算Canvas坐标（考虑旋转和缩放）
+                const { x, y } = this._calculateCanvasCoordinates(clientX, clientY);
                 
                 console.log('[Selection] Click at:', x, y);
                 
@@ -293,9 +370,17 @@ class SelectionSystem {
                 }
             };
             
+            this.clickHandler = handlePointer;
+            this.touchHandler = (e) => {
+                e.preventDefault(); // 防止默认行为（如滚动）
+                handlePointer(e);
+            };
+            
             console.log('[Selection] showTextSelection active, choices:', choices);
             document.addEventListener('keydown', this.keyHandler, true);  // 使用捕获阶段
-            this.engine.graphics.canvas.addEventListener('click', this.clickHandler);
+            const canvas = this.engine.graphics.canvas;
+            canvas.addEventListener('click', this.clickHandler);
+            canvas.addEventListener('touchend', this.touchHandler, { passive: false });
         });
     }
 
@@ -344,9 +429,14 @@ class SelectionSystem {
             document.removeEventListener('keydown', this.keyHandler, true);  // 移除捕获阶段监听器
             this.keyHandler = null;
         }
-        if (this.clickHandler && this.engine.graphics.canvas) {
-            this.engine.graphics.canvas.removeEventListener('click', this.clickHandler);
+        const canvas = this.engine.graphics.canvas;
+        if (this.clickHandler && canvas) {
+            canvas.removeEventListener('click', this.clickHandler);
             this.clickHandler = null;
+        }
+        if (this.touchHandler && canvas) {
+            canvas.removeEventListener('touchend', this.touchHandler);
+            this.touchHandler = null;
         }
         this._optionAreas = null;
         this.isActive = false;

@@ -11,6 +11,7 @@ class GallerySystem {
         this.selectables = [];
         this.selectedIndex = 0;
         this.keyHandler = null;
+        this.currentMusicList = null;  // 当前音乐列表
     }
 
     /**
@@ -37,6 +38,12 @@ class GallerySystem {
             <div class="gallery-grid"></div>
             <button class="menu-item gallery-back">返回</button>
         `;
+        
+        // 调试：打印样式信息
+        console.log('=== Gallery Panel Debug ===');
+        console.log('Screen size:', window.innerWidth, 'x', window.innerHeight);
+        console.log('Orientation:', window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
+        console.log('Rotation enabled:', typeof screenRotation !== 'undefined' ? screenRotation.enabled : false);
         
         const grid = panel.querySelector('.gallery-grid');
         
@@ -112,6 +119,67 @@ class GallerySystem {
         this.overlay.innerHTML = '';
         this.overlay.appendChild(panel);
         this.overlay.style.display = 'flex';
+        
+        // 调试：打印实际应用的样式
+        setTimeout(() => {
+            const computedPanel = window.getComputedStyle(panel);
+            const computedTitle = window.getComputedStyle(panel.querySelector('.gallery-title'));
+            const computedGrid = window.getComputedStyle(grid);
+            const computedBack = window.getComputedStyle(panel.querySelector('.gallery-back'));
+            const firstItem = panel.querySelector('.gallery-item');
+            const computedItem = firstItem ? window.getComputedStyle(firstItem) : null;
+            
+            console.log('=== Computed Styles ===');
+            console.log('Panel:', {
+                display: computedPanel.display,
+                flexDirection: computedPanel.flexDirection,
+                overflow: computedPanel.overflow,
+                maxHeight: computedPanel.maxHeight,
+                height: panel.offsetHeight,
+                padding: computedPanel.padding
+            });
+            console.log('Title:', {
+                flexShrink: computedTitle.flexShrink,
+                marginBottom: computedTitle.marginBottom,
+                paddingBottom: computedTitle.paddingBottom,
+                height: panel.querySelector('.gallery-title').offsetHeight
+            });
+            console.log('Grid:', {
+                display: computedGrid.display,
+                gridTemplateColumns: computedGrid.gridTemplateColumns,
+                gap: computedGrid.gap,
+                flex: computedGrid.flex,
+                minHeight: computedGrid.minHeight,
+                maxHeight: computedGrid.maxHeight,
+                overflowY: computedGrid.overflowY,
+                height: grid.offsetHeight,
+                scrollHeight: grid.scrollHeight,
+                marginBottom: computedGrid.marginBottom
+            });
+            if (computedItem && firstItem) {
+                console.log('First Gallery Item:', {
+                    display: computedItem.display,
+                    position: computedItem.position,
+                    width: firstItem.offsetWidth,
+                    height: firstItem.offsetHeight,
+                    aspectRatio: computedItem.aspectRatio,
+                    marginTop: computedItem.marginTop,
+                    marginBottom: computedItem.marginBottom
+                });
+            }
+            console.log('Back button:', {
+                flexShrink: computedBack.flexShrink,
+                marginTop: computedBack.marginTop,
+                height: panel.querySelector('.gallery-back').offsetHeight
+            });
+            console.log('Total heights:', {
+                panel: panel.offsetHeight,
+                title: panel.querySelector('.gallery-title').offsetHeight,
+                grid: grid.offsetHeight,
+                back: panel.querySelector('.gallery-back').offsetHeight,
+                sum: panel.querySelector('.gallery-title').offsetHeight + grid.offsetHeight + panel.querySelector('.gallery-back').offsetHeight
+            });
+        }, 100);
         
         // 设置初始选中
         this._updateSelection();
@@ -295,15 +363,41 @@ class GallerySystem {
      * 显示音乐鉴赏
      */
     async showMusicGallery() {
+        console.log('[Gallery] showMusicGallery called');
         const engine = this.engine;
-        const musicList = await this._loadMusicList();
         
-        if (!musicList || musicList.length === 0) {
-            console.warn('No music list found');
+        if (!engine || !engine.gameData) {
+            console.error('[Gallery] Engine or gameData not available');
             return;
         }
         
+        const musicList = await this._loadMusicList();
+        console.log('[Gallery] Music list loaded:', musicList?.length || 0, 'items');
+        
         this._createOverlay();
+        
+        if (!musicList || musicList.length === 0) {
+            console.warn('[Gallery] No music list found');
+            // 显示错误提示
+            const panel = document.createElement('div');
+            panel.className = 'gallery-panel music-gallery';
+            panel.innerHTML = `
+                <div class="gallery-title">音乐鉴赏</div>
+                <div style="padding: 20px; text-align: center; color: #999;">
+                    未找到音乐文件
+                </div>
+                <button class="menu-item gallery-back">返回</button>
+            `;
+            
+            panel.querySelector('.gallery-back').addEventListener('click', () => {
+                this.close();
+            });
+            
+            this.overlay.innerHTML = '';
+            this.overlay.appendChild(panel);
+            this.overlay.style.display = 'flex';
+            return;
+        }
         
         const panel = document.createElement('div');
         panel.className = 'gallery-panel music-gallery';
@@ -319,6 +413,12 @@ class GallerySystem {
         `;
         
         const list = panel.querySelector('.music-list');
+        this.selectables = [];
+        this.selectedIndex = 0;
+        this.currentIndex = 0;
+        
+        // 保存音乐列表供键盘操作使用
+        this.currentMusicList = musicList;
         
         musicList.forEach((music, i) => {
             const item = document.createElement('div');
@@ -329,39 +429,79 @@ class GallerySystem {
                 <span class="music-name">${music.name || music.file}</span>
             `;
             
-            item.addEventListener('click', () => {
+            const handleClick = () => {
                 this._playMusic(music, i);
-                list.querySelectorAll('.music-item').forEach(el => el.classList.remove('active'));
-                item.classList.add('active');
-            });
+                list.querySelectorAll('.music-item').forEach(el => el.classList.remove('active', 'selected'));
+                item.classList.add('active', 'selected');
+                this.selectedIndex = i;
+                this.currentIndex = i;
+            };
+            
+            item.addEventListener('click', handleClick);
+            
+            // 添加触摸事件支持
+            item.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                handleClick();
+            }, { passive: false });
             
             list.appendChild(item);
+            this.selectables.push(item);
         });
         
         // 控制按钮
-        panel.querySelector('[data-action="play"]').addEventListener('click', () => {
+        const playBtn = panel.querySelector('[data-action="play"]');
+        const prevBtn = panel.querySelector('[data-action="prev"]');
+        const nextBtn = panel.querySelector('[data-action="next"]');
+        const backBtn = panel.querySelector('.gallery-back');
+        
+        const handlePlay = () => {
             const audio = engine.audio.bgmAudio;
             if (audio.paused) {
                 audio.play();
             } else {
                 audio.pause();
             }
-        });
+        };
         
-        panel.querySelector('[data-action="prev"]').addEventListener('click', () => {
+        const handlePrev = () => {
             this.currentIndex = (this.currentIndex - 1 + musicList.length) % musicList.length;
             this._playMusic(musicList[this.currentIndex], this.currentIndex);
-        });
+            this.selectedIndex = this.currentIndex;
+            this._updateSelection();
+        };
         
-        panel.querySelector('[data-action="next"]').addEventListener('click', () => {
+        const handleNext = () => {
             this.currentIndex = (this.currentIndex + 1) % musicList.length;
             this._playMusic(musicList[this.currentIndex], this.currentIndex);
-        });
+            this.selectedIndex = this.currentIndex;
+            this._updateSelection();
+        };
         
-        panel.querySelector('.gallery-back').addEventListener('click', () => {
+        const handleBack = () => {
             engine.audio.stopBGM();
             this.close();
-        });
+        };
+        
+        playBtn.addEventListener('click', handlePlay);
+        prevBtn.addEventListener('click', handlePrev);
+        nextBtn.addEventListener('click', handleNext);
+        backBtn.addEventListener('click', handleBack);
+        
+        // 添加触摸事件支持
+        playBtn.addEventListener('touchend', (e) => { e.preventDefault(); handlePlay(); }, { passive: false });
+        prevBtn.addEventListener('touchend', (e) => { e.preventDefault(); handlePrev(); }, { passive: false });
+        nextBtn.addEventListener('touchend', (e) => { e.preventDefault(); handleNext(); }, { passive: false });
+        backBtn.addEventListener('touchend', (e) => { e.preventDefault(); handleBack(); }, { passive: false });
+        
+        // 将控制按钮和返回按钮也加入可选择项
+        this.selectables.push(prevBtn, playBtn, nextBtn, backBtn);
+        
+        // 设置键盘操作
+        this._setupMusicKeyboard(musicList);
+        
+        // 初始化选中状态
+        this._updateSelection();
         
         this.overlay.innerHTML = '';
         this.overlay.appendChild(panel);
@@ -374,25 +514,80 @@ class GallerySystem {
      */
     async _loadMusicList() {
         try {
-            const path = 'system/music_list.txt';
-            const data = this.engine.gameData.Zip[path]?.compressed_data;
+            // 尝试多个路径
+            const paths = [
+                'system/music_list.txt',
+                'script/music_list.txt',
+                'music_list.txt'
+            ];
             
-            if (!data) return [];
+            let data = null;
+            for (const path of paths) {
+                data = this.engine.gameData.Zip[path]?.compressed_data;
+                if (data) break;
+            }
             
-            const text = new TextDecoder('utf-8').decode(data);
-            const lines = text.split('\n').filter(line => line.trim() && !line.startsWith(';'));
-            
-            return lines.map(line => {
-                const parts = line.split(',');
-                return {
-                    file: parts[0]?.trim(),
-                    name: parts[1]?.trim() || parts[0]?.trim()
-                };
-            });
+            if (data) {
+                // 从文件加载
+                const text = new TextDecoder('utf-8').decode(data);
+                const lines = text.split('\n').filter(line => line.trim() && !line.startsWith(';'));
+                
+                return lines.map(line => {
+                    const parts = line.split(',');
+                    return {
+                        file: parts[0]?.trim(),
+                        name: parts[1]?.trim() || parts[0]?.trim()
+                    };
+                });
+            } else {
+                // 如果找不到列表文件，从 bgm 目录自动扫描
+                console.log('Music list file not found, scanning bgm directory...');
+                return this._scanBGMDirectory();
+            }
         } catch (e) {
             console.error('Failed to load music list', e);
-            return [];
+            // 出错时也尝试扫描 bgm 目录
+            return this._scanBGMDirectory();
         }
+    }
+
+    /**
+     * 扫描 BGM 目录获取音乐列表
+     * @private
+     */
+    _scanBGMDirectory() {
+        const musicList = [];
+        const bgmFormat = this.engine.config.get('bgmformat') || '.mp3';
+        
+        if (!this.engine.gameData || !this.engine.gameData.Zip) {
+            console.error('[Gallery] gameData.Zip not available');
+            return musicList;
+        }
+        
+        // 扫描 ZIP 中的 bgm/ 目录
+        const allKeys = Object.keys(this.engine.gameData.Zip);
+        console.log('[Gallery] Total ZIP files:', allKeys.length);
+        console.log('[Gallery] Sample ZIP keys:', allKeys.slice(0, 20));
+        
+        const bgmFiles = allKeys
+            .filter(key => {
+                const lowerKey = key.toLowerCase();
+                return lowerKey.startsWith('bgm/') && lowerKey.endsWith(bgmFormat.toLowerCase());
+            })
+            .sort(); // 按文件名排序
+        
+        console.log(`[Gallery] Found ${bgmFiles.length} BGM files:`, bgmFiles);
+        
+        bgmFiles.forEach(file => {
+            // 提取文件名（不含路径和扩展名）
+            const fileName = file.split('/').pop().replace(bgmFormat.toLowerCase(), '');
+            musicList.push({
+                file: fileName,
+                name: fileName
+            });
+        });
+        
+        return musicList;
     }
 
     /**
@@ -450,6 +645,7 @@ class GallerySystem {
         }
         this.selectables = [];
         this.selectedIndex = 0;
+        this.currentMusicList = null;
     }
 
     /**
@@ -518,6 +714,90 @@ class GallerySystem {
                 case 'Backspace':
                 case '0':
                 case '#':
+                    this.close();
+                    e.preventDefault();
+                    break;
+            }
+        };
+        
+        document.addEventListener('keydown', this.keyHandler, true);
+    }
+
+    /**
+     * 设置音乐鉴赏键盘操作
+     * @private
+     */
+    _setupMusicKeyboard(musicList) {
+        this._removeKeyboard();
+        
+        this.keyHandler = (e) => {
+            e.stopImmediatePropagation();
+            
+            // 使用按键映射（处理屏幕旋转）
+            const key = window.mapKeyForRotation ? window.mapKeyForRotation(e.key) : e.key;
+            
+            switch (key) {
+                case 'ArrowUp':
+                case '2':
+                    this.selectedIndex = Math.max(0, this.selectedIndex - 1);
+                    this._updateSelection();
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown':
+                case '8':
+                    this.selectedIndex = Math.min(this.selectables.length - 1, this.selectedIndex + 1);
+                    this._updateSelection();
+                    e.preventDefault();
+                    break;
+                case 'Enter':
+                case '5':
+                case ' ':
+                case 'SoftLeft':
+                    const selected = this.selectables[this.selectedIndex];
+                    if (selected) {
+                        if (selected.classList.contains('music-item')) {
+                            // 选择音乐项
+                            const index = parseInt(selected.dataset.index);
+                            if (!isNaN(index) && musicList[index]) {
+                                this._playMusic(musicList[index], index);
+                                this.currentIndex = index;
+                                this.selectedIndex = index;
+                                this._updateSelection();
+                            }
+                        } else if (selected.dataset.action === 'play') {
+                            // 播放/暂停
+                            const audio = this.engine.audio.bgmAudio;
+                            if (audio.paused) {
+                                audio.play();
+                            } else {
+                                audio.pause();
+                            }
+                        } else if (selected.dataset.action === 'prev') {
+                            // 上一首
+                            this.currentIndex = (this.currentIndex - 1 + musicList.length) % musicList.length;
+                            this._playMusic(musicList[this.currentIndex], this.currentIndex);
+                            this.selectedIndex = this.currentIndex;
+                            this._updateSelection();
+                        } else if (selected.dataset.action === 'next') {
+                            // 下一首
+                            this.currentIndex = (this.currentIndex + 1) % musicList.length;
+                            this._playMusic(musicList[this.currentIndex], this.currentIndex);
+                            this.selectedIndex = this.currentIndex;
+                            this._updateSelection();
+                        } else if (selected.classList.contains('gallery-back')) {
+                            // 返回
+                            this.engine.audio.stopBGM();
+                            this.close();
+                        }
+                    }
+                    e.preventDefault();
+                    break;
+                case 'Escape':
+                case 'Backspace':
+                case '0':
+                case '#':
+                case 'SoftRight':
+                    this.engine.audio.stopBGM();
                     this.close();
                     e.preventDefault();
                     break;

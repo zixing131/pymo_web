@@ -94,6 +94,17 @@ class PyMOEngine {
         // 初始化图形系统
         await this.graphics.init(canvasElement);
         
+        // Canvas尺寸设置后，更新缩放（确保旋转时正确显示）
+        if (window.updateCanvasScale) {
+            window.updateCanvasScale();
+            // 延迟再次更新，确保在iPhone上正确显示
+            setTimeout(() => {
+                if (window.updateCanvasScale) {
+                    window.updateCanvasScale();
+                }
+            }, 100);
+        }
+        
         // 初始化音频
         this.audio.loadVolumeFromConfig();
         

@@ -57,6 +57,15 @@ class MenuSystem {
                 this.overlay.classList.add('rotated-right');
             }
         }
+        
+        // 强制重新计算布局（修复iPhone上的定位问题）
+        this.overlay.style.display = 'none';
+        // 使用 requestAnimationFrame 确保样式更新
+        requestAnimationFrame(() => {
+            if (this.overlay) {
+                this.overlay.style.display = 'flex';
+            }
+        });
     }
 
     /**
@@ -160,6 +169,8 @@ class MenuSystem {
      * 显示主菜单
      */
     showMainMenu() {
+        // 重新应用旋转设置（修复iPhone上的定位问题）
+        this._applyRotation();
         this._createOverlay();
         this.isOpen = true;
         this.panelStack = [];  // 清空返回栈
@@ -176,9 +187,15 @@ class MenuSystem {
         
         const buttons = menuPanel.querySelectorAll('.menu-item');
         buttons.forEach(btn => {
-            btn.addEventListener('click', () => {
+            const handleAction = () => {
                 this._handleMenuAction(btn.dataset.action);
-            });
+            };
+            btn.addEventListener('click', handleAction);
+            // 添加触摸事件支持
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                handleAction();
+            }, { passive: false });
         });
         
         this.overlay.innerHTML = '';
@@ -275,9 +292,15 @@ class MenuSystem {
                 `;
             }
             
-            slot.addEventListener('click', () => {
+            const handleSlotClick = () => {
                 this._handleSlotClick(i, mode);
-            });
+            };
+            slot.addEventListener('click', handleSlotClick);
+            // 添加触摸事件支持
+            slot.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                handleSlotClick();
+            }, { passive: false });
             
             slotsContainer.appendChild(slot);
             selectables.push(slot);
@@ -285,14 +308,20 @@ class MenuSystem {
         
         // 返回按钮
         const backBtn = panel.querySelector('.back-btn');
-        backBtn.addEventListener('click', () => {
+        const handleBack = () => {
             // 如果是从脚本调用且用户取消，通知回调
             if (this._loadCallback) {
                 this._loadCallback(false);
                 this._loadCallback = null;
             }
             this.goBack();
-        });
+        };
+        backBtn.addEventListener('click', handleBack);
+        // 添加触摸事件支持
+        backBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleBack();
+        }, { passive: false });
         selectables.push(backBtn);
         
         this.overlay.innerHTML = '';
@@ -444,30 +473,60 @@ class MenuSystem {
         
         // 屏幕旋转开关
         const rotationToggle = panel.querySelector('#rotation-toggle');
-        rotationToggle.addEventListener('click', () => {
+        const handleRotationToggle = () => {
             if (typeof toggleScreenRotation === 'function') {
                 const enabled = toggleScreenRotation();
                 rotationToggle.textContent = enabled ? '开启' : '关闭';
+                // 重新应用旋转设置到所有界面
+                this._applyRotation();
+                // 如果 Gallery 系统存在且已打开，也应用旋转
+                if (this.engine.gallery && this.engine.gallery.overlay && this.engine.gallery.overlay.style.display !== 'none') {
+                    this.engine.gallery._applyRotation();
+                }
             }
-        });
+        };
+        rotationToggle.addEventListener('click', handleRotationToggle);
+        // 添加触摸事件支持
+        rotationToggle.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleRotationToggle();
+        }, { passive: false });
         selectables.push(rotationToggle);
         
         // 旋转方向
         const rotationDirection = panel.querySelector('#rotation-direction');
-        rotationDirection.addEventListener('click', () => {
+        const handleRotationDirection = () => {
             if (typeof screenRotation !== 'undefined' && typeof setRotationDirection === 'function') {
                 const newDirection = screenRotation.direction === 'left' ? 'right' : 'left';
                 setRotationDirection(newDirection);
                 rotationDirection.textContent = newDirection === 'left' ? '左转' : '右转';
+                // 重新应用旋转设置到所有界面
+                this._applyRotation();
+                // 如果 Gallery 系统存在且已打开，也应用旋转
+                if (this.engine.gallery && this.engine.gallery.overlay && this.engine.gallery.overlay.style.display !== 'none') {
+                    this.engine.gallery._applyRotation();
+                }
             }
-        });
+        };
+        rotationDirection.addEventListener('click', handleRotationDirection);
+        // 添加触摸事件支持
+        rotationDirection.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleRotationDirection();
+        }, { passive: false });
         selectables.push(rotationDirection);
         
         // 返回按钮
         const backBtn = panel.querySelector('.back-btn');
-        backBtn.addEventListener('click', () => {
+        const handleBack = () => {
             this.goBack();
-        });
+        };
+        backBtn.addEventListener('click', handleBack);
+        // 添加触摸事件支持
+        backBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleBack();
+        }, { passive: false });
         selectables.push(backBtn);
         
         this.overlay.innerHTML = '';

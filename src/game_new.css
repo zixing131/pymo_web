@@ -12,16 +12,23 @@ html, body {
     overflow: hidden;
     background: #0a0a0a;
     font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    /* iPhone安全区域支持 */
+    height: 100vh;
+    height: 100dvh; /* 动态视口高度，考虑地址栏 */
 }
 
 #game-container {
     width: 100%;
     height: 100%;
+    height: 100vh;
+    height: 100dvh; /* 动态视口高度，考虑地址栏 */
     display: flex;
     justify-content: center;
     align-items: center;
     position: relative;
     background: linear-gradient(135deg, #1a1a2e 0%, #0a0a0a 50%, #16213e 100%);
+    /* iPhone安全区域支持 */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 #game-canvas {
@@ -283,26 +290,45 @@ html, body {
     left: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh; /* 动态视口高度，考虑地址栏 */
     display: flex;
     justify-content: center;
     align-items: center;
     background: rgba(0, 0, 0, 0.85);
     z-index: 1000;
+    /* iPhone安全区域支持 */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 /* 旋转模式下的覆盖层 */
 .menu-overlay.rotated-left {
     transform: rotate(-90deg);
     transform-origin: center center;
+    /* 使用实际视口尺寸 */
     width: 100vh;
+    width: 100dvh; /* 动态视口高度，考虑地址栏 */
     height: 100vw;
+    /* 修复iPhone上的定位问题 - 使用绝对定位居中 */
+    left: 50%;
+    top: 50%;
+    margin-left: -50vh;
+    margin-left: -50dvh; /* 动态视口高度 */
+    margin-top: -50vw;
 }
 
 .menu-overlay.rotated-right {
     transform: rotate(90deg);
     transform-origin: center center;
+    /* 使用实际视口尺寸 */
     width: 100vh;
+    width: 100dvh; /* 动态视口高度，考虑地址栏 */
     height: 100vw;
+    /* 修复iPhone上的定位问题 - 使用绝对定位居中 */
+    left: 50%;
+    top: 50%;
+    margin-left: -50vh;
+    margin-left: -50dvh; /* 动态视口高度 */
+    margin-top: -50vw;
 }
 
 .menu-panel {
@@ -432,9 +458,11 @@ html, body {
     border-radius: 12px;
     padding: 24px;
     min-width: 400px;
-    max-width: 90%;
-    max-height: 85%;
-    overflow-y: auto;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .gallery-title {
@@ -443,13 +471,17 @@ html, body {
     margin-bottom: 16px;
     padding-bottom: 12px;
     border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+    flex-shrink: 0;
 }
 
 .gallery-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(120px, 1fr));
     gap: 12px;
-    margin-bottom: 16px;
+    margin-bottom: 0;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .gallery-item {
@@ -460,6 +492,18 @@ html, body {
     overflow: hidden;
     cursor: pointer;
     transition: all 0.2s ease;
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 75%; /* 4:3 aspect ratio fallback */
+}
+
+.gallery-item > * {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
 }
 
 .gallery-item:hover {
@@ -490,6 +534,8 @@ html, body {
 
 .gallery-back {
     width: 100%;
+    flex-shrink: 0;
+    margin-top: 12px;
 }
 
 /* CG 查看器 */
@@ -559,6 +605,11 @@ html, body {
     background: rgba(100, 150, 255, 0.2);
 }
 
+.music-item.selected {
+    background: rgba(100, 150, 255, 0.3);
+    border: 1px solid rgba(100, 150, 255, 0.5);
+}
+
 .music-number {
     color: #556;
     font-family: monospace;
@@ -600,7 +651,8 @@ html, body {
     border-radius: 12px;
     padding: 16px;
     max-width: 90vw;
-    max-height: 80vh;
+    max-height: 85vh;
+    min-width: 400px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -613,6 +665,7 @@ html, body {
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid rgba(100, 150, 255, 0.3);
+    flex-shrink: 0;
 }
 
 .gallery-grid {
@@ -620,8 +673,10 @@ html, body {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 10px;
     overflow-y: auto;
-    max-height: 60vh;
+    flex: 1;
+    min-height: 0;
     padding: 8px;
+    margin-bottom: 0;
 }
 
 .gallery-item {
@@ -632,6 +687,18 @@ html, body {
     overflow: hidden;
     cursor: pointer;
     transition: all 0.2s;
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 75%; /* 4:3 aspect ratio fallback */
+}
+
+.gallery-item > * {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
 }
 
 .gallery-item img {
@@ -664,6 +731,7 @@ html, body {
 
 .gallery-back {
     margin-top: 12px;
+    flex-shrink: 0;
 }
 
 .gallery-back.selected {
@@ -930,24 +998,31 @@ html, body {
     
     /* Gallery 鉴赏 */
     .gallery-panel {
-        padding: 6px;
+        padding: 12px;
         max-width: 95vw;
-        max-height: 85vh;
+        max-height: 90vh;
         width: auto;
+        min-width: 280px;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
     }
     
     .gallery-title {
-        font-size: 13px;
-        margin-bottom: 6px;
-        padding-bottom: 4px;
+        font-size: 14px;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        flex-shrink: 0 !important;
     }
     
     .gallery-grid {
         grid-template-columns: repeat(3, 1fr);
-        gap: 3px;
-        max-height: 50vh;
-        padding: 2px;
-        overflow-y: auto;
+        gap: 8px;
+        padding: 4px;
+        overflow-y: auto !important;
+        flex: 1 !important;
+        min-height: 0 !important;
+        margin-bottom: 0 !important;
     }
     
     .gallery-item {
@@ -964,6 +1039,7 @@ html, body {
         margin-top: 8px;
         padding: 8px 16px;
         font-size: 12px;
+        flex-shrink: 0 !important;
     }
     
     /* CG 查看器 */
@@ -977,20 +1053,43 @@ html, body {
     
     /* 音乐列表 */
     .music-gallery {
-        max-width: 220px;
+        max-width: 95vw;
+        min-width: 240px;
+        padding: 8px !important;
     }
     
     .music-list {
-        max-height: 40vh;
+        max-height: 50vh;
+        overflow-y: auto;
     }
     
     .music-item {
-        padding: 8px 10px;
-        font-size: 12px;
+        padding: 6px 8px;
+        font-size: 11px;
+        gap: 6px;
     }
     
     .music-number {
+        font-size: 10px;
+        min-width: 20px;
+    }
+    
+    .music-name {
         font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .music-controls {
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .music-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 12px;
     }
     
     .music-controls {
@@ -1051,16 +1150,67 @@ html, body {
     .menu-panel,
     .save-modal,
     .gallery-panel {
-        max-width: 230px !important;
-        min-width: 0 !important;
-        max-height: 95% !important;
-        width: 95% !important;
+        max-width: 95vw !important;
+        min-width: 230px !important;
+        max-height: 90vh !important;
+        width: 95vw !important;
         height: auto !important;
         border-radius: 4px;
         border: 1px solid rgba(100, 150, 255, 0.3);
-        padding: 4px !important;
+        padding: 6px !important;
         margin: 0;
         box-sizing: border-box;
+    }
+    
+    /* 音乐鉴赏小屏幕优化 */
+    .music-gallery {
+        min-width: 230px !important;
+        max-width: 95vw !important;
+        padding: 6px !important;
+    }
+    
+    .music-list {
+        max-height: 55vh;
+        padding: 2px;
+    }
+    
+    .music-item {
+        padding: 4px 6px;
+        font-size: 10px;
+        gap: 4px;
+    }
+    
+    .music-item.selected {
+        background: rgba(100, 150, 255, 0.3);
+    }
+    
+    .music-number {
+        font-size: 9px;
+        min-width: 18px;
+    }
+    
+    .music-name {
+        font-size: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .music-controls {
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+    
+    .music-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 11px;
+    }
+    
+    .gallery-back {
+        padding: 6px 12px;
+        font-size: 11px;
+        margin-top: 4px;
     }
     
     /* 菜单 */
@@ -1144,34 +1294,39 @@ html, body {
     
     /* CG 鉴赏 */
     .gallery-panel {
-        display: flex;
-        flex-direction: column;
-        min-width: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        min-width: 500px !important;
+        max-width: 95vw !important;
+        max-height: 90vh !important;
+        padding: 16px !important;
+        overflow: hidden !important;
     }
     
     .gallery-title {
-        font-size: 12px;
-        padding: 4px;
-        margin-bottom: 4px;
-        flex-shrink: 0;
+        font-size: 16px;
+        padding: 10px;
+        margin-bottom: 10px;
+        flex-shrink: 0 !important;
     }
     
     .gallery-grid {
-        flex: 1;
-        display: flex !important;
-        flex-wrap: wrap !important;
+        flex: 1 !important;
+        min-height: 0 !important;
+        display: grid !important;
+        grid-template-columns: repeat(5, 1fr) !important;
         gap: 12px !important;
-        max-height: 65vh;
-        overflow-y: auto;
-        padding: 8px;
+        max-height: none !important;
+        overflow-y: auto !important;
+        padding: 10px;
         width: 100%;
-        justify-content: center;
-        align-content: flex-start;
+        margin-bottom: 0 !important;
     }
     
     .gallery-item {
-        width: 80px !important;
-        height: 60px !important;
+        width: auto !important;
+        min-width: 90px;
+        height: auto !important;
         flex-shrink: 0;
         border-radius: 2px;
         overflow: hidden;
@@ -1195,10 +1350,10 @@ html, body {
     }
     
     .gallery-back {
-        margin-top: 4px;
+        margin-top: 12px !important;
         padding: 6px 12px;
         font-size: 10px;
-        flex-shrink: 0;
+        flex-shrink: 0 !important;
     }
     
     /* 设置 */
@@ -1272,6 +1427,46 @@ html, body {
     }
 }
 
+/* 横屏模式优化（iPhone横屏等） */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+    .gallery-panel {
+        max-width: 95vw !important;
+        min-width: 600px !important;
+        max-height: 90vh !important;
+        padding: 16px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+    
+    .gallery-title {
+        font-size: 16px;
+        margin-bottom: 12px;
+        flex-shrink: 0 !important;
+        padding-bottom: 8px;
+    }
+    
+    .gallery-grid {
+        flex: 1 !important;
+        min-height: 0 !important;
+        grid-template-columns: repeat(5, 1fr) !important;
+        max-height: none !important;
+        gap: 12px !important;
+        padding: 8px !important;
+        overflow-y: auto !important;
+        margin-bottom: 0 !important;
+    }
+    
+    .gallery-item {
+        min-width: 100px;
+    }
+    
+    .gallery-back {
+        flex-shrink: 0 !important;
+        margin-top: 12px !important;
+    }
+}
+
 /* 屏幕旋转时的面板样式 */
 .menu-overlay.rotated-left,
 .menu-overlay.rotated-right {
@@ -1284,8 +1479,11 @@ html, body {
 .menu-overlay.rotated-right .menu-panel,
 .menu-overlay.rotated-right .save-modal,
 .menu-overlay.rotated-right .gallery-panel {
-    max-width: 95%;
-    max-height: 95%;
+    max-width: 95% !important;
+    max-height: 95% !important;
+    width: auto !important;
+    min-width: 500px !important;
+    min-height: 300px !important;
 }
 
 .menu-overlay.rotated-left .save-slots,
@@ -1293,10 +1491,34 @@ html, body {
     max-height: 60vh;
 }
 
+.menu-overlay.rotated-left .gallery-panel,
+.menu-overlay.rotated-right .gallery-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+.menu-overlay.rotated-left .gallery-title,
+.menu-overlay.rotated-right .gallery-title {
+    flex-shrink: 0 !important;
+}
+
 .menu-overlay.rotated-left .gallery-grid,
 .menu-overlay.rotated-right .gallery-grid {
-    max-height: 55vh;
-    grid-template-columns: repeat(3, 1fr);
+    flex: 1 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    overflow-y: auto !important;
+    gap: 12px !important;
+    padding: 10px !important;
+    margin-bottom: 0 !important;
+}
+
+.menu-overlay.rotated-left .gallery-back,
+.menu-overlay.rotated-right .gallery-back {
+    flex-shrink: 0 !important;
+    margin-top: 12px !important;
 }
 
 .menu-overlay.rotated-left .config-items,
