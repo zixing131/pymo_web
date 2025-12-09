@@ -28,7 +28,7 @@ try {
     function opengame() {
         let gamename = null;
         
-        // 优先级：selectedGame > nowfocus > .game-card.focus
+        // 优先级：selectedGame > nowfocus > .game-card.focus > [focused] > 第一个游戏（保底）
         if (selectedGame) {
             gamename = selectedGame.name;
             console.log('[opengame] Using selectedGame:', gamename);
@@ -37,20 +37,40 @@ try {
             console.log('[opengame] Using nowfocus:', gamename, nowfocus);
         } else {
             // 检查焦点系统的 focus 类
-            const focusedCard = document.querySelector('.game-card.focus');
+            let focusedCard = document.querySelector('.game-card.focus');
+            if (!focusedCard) {
+                // 检查 focusable-core 使用的 [focused] 属性
+                focusedCard = document.querySelector('.game-card[focused]');
+            }
             if (focusedCard && focusedCard.dataset.gamename) {
                 gamename = focusedCard.dataset.gamename;
                 console.log('[opengame] Using focusedCard:', gamename, focusedCard);
             }
         }
         
+        // 保底：如果还是没有游戏名，尝试获取第一个游戏卡片
         if (!gamename) {
-            console.warn('[opengame] No game selected!', {
+            const firstCard = document.querySelector('.game-card[data-gamename]');
+            if (firstCard && firstCard.dataset.gamename) {
+                gamename = firstCard.dataset.gamename;
+                console.log('[opengame] Using first card as fallback:', gamename, firstCard);
+                
+                // 同时尝试聚焦到第一个卡片
+                if (typeof focusable !== 'undefined') {
+                    focusable.requestFocus(firstCard);
+                }
+            }
+        }
+        
+        if (!gamename) {
+            console.warn('[opengame] No game found!', {
                 selectedGame,
                 nowfocus,
-                focusedCard: document.querySelector('.game-card.focus')
+                focusedCard: document.querySelector('.game-card.focus'),
+                focusedAttr: document.querySelector('.game-card[focused]'),
+                allGameCards: document.querySelectorAll('.game-card').length
             });
-            showDialog("提示", "请先选择一个游戏！");
+            showDialog("提示", "没有找到可用的游戏！");
             return;
         }
         
@@ -187,6 +207,15 @@ try {
                 
                 // 添加右键菜单
                 setupContextMenu();
+                
+                // 自动聚焦第一个游戏卡片（KaiOS 兼容）
+                setTimeout(() => {
+                    const firstCard = document.querySelector('.game-card[focusable]');
+                    if (firstCard && typeof focusable !== 'undefined') {
+                        console.log('[refreshGameList] Auto-focusing first game card:', firstCard.dataset.gamename);
+                        focusable.requestFocus(firstCard);
+                    }
+                }, 100);
             },
             (err) => {
                 console.error('Failed to load games:', err);
@@ -652,9 +681,21 @@ try {
         }
         
         // Enter 键启动游戏
-        // 优先级：selectedGame > nowfocus > .game-card.focus
-        if (selectedGame || nowfocus || document.querySelector(".game-card.focus")) {
+        console.log('[softcenter] Checking game selection:', {
+            selectedGame,
+            nowfocus,
+            nowfocusDataset: nowfocus?.dataset,
+            focusClass: document.querySelector(".game-card.focus"),
+            focusedAttr: document.querySelector(".game-card[focused]"),
+            allGameCards: document.querySelectorAll('.game-card').length
+        });
+        
+        // 优先级：selectedGame > nowfocus > .game-card.focus > [focused]
+        if (selectedGame || nowfocus || document.querySelector(".game-card.focus") || document.querySelector(".game-card[focused]")) {
             opengame();
+        } else {
+            console.warn('[softcenter] No game selected or focused!');
+            showDialog("提示", "请先用方向键选择一个游戏，然后按 OK 键启动！");
         }
     }
 
