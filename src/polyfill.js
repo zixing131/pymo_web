@@ -128,5 +128,91 @@ if (typeof Promise !== 'undefined' && !Promise.prototype.finally) {
     };
 }
 
+// URLSearchParams polyfill (Firefox 48 不支持)
+if (typeof URLSearchParams === 'undefined') {
+    function URLSearchParams(search) {
+        this.params = {};
+        if (search) {
+            if (typeof search === 'string') {
+                // 如果是字符串，去掉开头的 ?
+                if (search.charAt(0) === '?') {
+                    search = search.substring(1);
+                }
+                // 解析参数
+                var pairs = search.split('&');
+                for (var i = 0; i < pairs.length; i++) {
+                    var pair = pairs[i].split('=');
+                    if (pair.length === 2) {
+                        var key = decodeURIComponent(pair[0]);
+                        var value = decodeURIComponent(pair[1]);
+                        if (this.params[key]) {
+                            // 如果已存在，转换为数组
+                            if (!Array.isArray(this.params[key])) {
+                                this.params[key] = [this.params[key]];
+                            }
+                            this.params[key].push(value);
+                        } else {
+                            this.params[key] = value;
+                        }
+                    }
+                }
+            } else if (search.forEach) {
+                // 如果是迭代器
+                var self = this;
+                search.forEach(function(value, key) {
+                    self.set(key, value);
+                });
+            }
+        }
+    }
+    
+    URLSearchParams.prototype.get = function(name) {
+        var value = this.params[name];
+        if (Array.isArray(value)) {
+            return value[0];
+        }
+        return value || null;
+    };
+    
+    URLSearchParams.prototype.getAll = function(name) {
+        var value = this.params[name];
+        if (Array.isArray(value)) {
+            return value;
+        }
+        return value ? [value] : [];
+    };
+    
+    URLSearchParams.prototype.set = function(name, value) {
+        this.params[name] = value;
+    };
+    
+    URLSearchParams.prototype.has = function(name) {
+        return name in this.params;
+    };
+    
+    URLSearchParams.prototype.delete = function(name) {
+        delete this.params[name];
+    };
+    
+    URLSearchParams.prototype.toString = function() {
+        var pairs = [];
+        for (var key in this.params) {
+            if (this.params.hasOwnProperty(key)) {
+                var value = this.params[key];
+                if (Array.isArray(value)) {
+                    for (var i = 0; i < value.length; i++) {
+                        pairs.push(encodeURIComponent(key) + '=' + encodeURIComponent(value[i]));
+                    }
+                } else {
+                    pairs.push(encodeURIComponent(key) + '=' + encodeURIComponent(value));
+                }
+            }
+        }
+        return pairs.join('&');
+    };
+    
+    window.URLSearchParams = URLSearchParams;
+}
+
 console.log('Polyfills loaded for Firefox 48 / KaiOS');
 

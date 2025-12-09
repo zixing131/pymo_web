@@ -14,11 +14,83 @@ let screenRotation = {
 };
 
 /**
- * 从 URL 获取游戏名称
+ * 从 URL 获取游戏名称（兼容老版本浏览器）
  */
 function getGameNameFromURL() {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('game') || urlParams.get('g');
+    let gameName = null;
+    
+    // 方法1：从 URL 参数获取
+    try {
+        // 优先使用 URLSearchParams（现代浏览器）
+        if (typeof URLSearchParams !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search);
+            gameName = urlParams.get('game') || urlParams.get('g');
+            if (gameName) {
+                console.log('[getGameNameFromURL] Got game name from URLSearchParams:', gameName);
+                return gameName;
+            }
+        }
+    } catch (err) {
+        console.warn('[getGameNameFromURL] URLSearchParams error:', err);
+    }
+    
+    // 方法2：手动解析 URL 参数
+    try {
+        const search = window.location.search;
+        if (search) {
+            // 解析 search 参数
+            const params = {};
+            const pairs = search.substring(1).split('&');
+            for (let i = 0; i < pairs.length; i++) {
+                const pair = pairs[i].split('=');
+                if (pair.length === 2) {
+                    const key = decodeURIComponent(pair[0]);
+                    const value = decodeURIComponent(pair[1]);
+                    params[key] = value;
+                }
+            }
+            gameName = params['game'] || params['g'];
+            if (gameName) {
+                console.log('[getGameNameFromURL] Got game name from manual parsing:', gameName);
+                return gameName;
+            }
+        }
+    } catch (err) {
+        console.warn('[getGameNameFromURL] Manual parsing error:', err);
+    }
+    
+    // 方法3：从 hash 中获取
+    try {
+        const hash = window.location.hash;
+        if (hash && hash.indexOf('game=') >= 0) {
+            const match = hash.match(/[?&]game=([^&]*)/);
+            if (match && match[1]) {
+                gameName = decodeURIComponent(match[1]);
+                console.log('[getGameNameFromURL] Got game name from hash:', gameName);
+                return gameName;
+            }
+        }
+    } catch (err) {
+        console.warn('[getGameNameFromURL] Hash parsing error:', err);
+    }
+    
+    // 方法4：从 sessionStorage 获取（备用方案，防止 URL 参数丢失）
+    try {
+        if (typeof sessionStorage !== 'undefined') {
+            gameName = sessionStorage.getItem('pymo_game_name');
+            if (gameName) {
+                console.log('[getGameNameFromURL] Got game name from sessionStorage:', gameName);
+                // 获取后清除，避免下次误用
+                sessionStorage.removeItem('pymo_game_name');
+                return gameName;
+            }
+        }
+    } catch (err) {
+        console.warn('[getGameNameFromURL] sessionStorage error:', err);
+    }
+    
+    console.warn('[getGameNameFromURL] No game name found. URL:', window.location.href);
+    return null;
 }
 
 /**

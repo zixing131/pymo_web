@@ -181,11 +181,15 @@ class GallerySystem {
             });
         }, 100);
         
-        // 设置初始选中
-        this._updateSelection();
-        
-        // 添加键盘支持
+        // 设置键盘导航（在selectables填充完成后）
         this._setupKeyboard('album', cgList);
+        
+        // 设置初始选中
+        if (this.selectables.length > 0) {
+            this.selectedIndex = 0;
+            this._updateSelection();
+            console.log('[Gallery] Initial selection set to index 0, total selectables:', this.selectables.length);
+        }
     }
 
     /**
@@ -313,8 +317,13 @@ class GallerySystem {
      * @private
      */
     async _showFullCG(cgName) {
-        // 暂时移除 gallery 的键盘处理，避免冲突
+        console.log('[Gallery] Opening CG viewer:', cgName);
+        
+        // 移除gallery的键盘处理，防止冲突
         this._removeKeyboard();
+        
+        // 设置engine标志，防止main.js的键盘处理干扰
+        this.engine.isCgViewerOpen = true;
         
         const viewer = document.createElement('div');
         viewer.className = 'cg-viewer';
@@ -337,7 +346,13 @@ class GallerySystem {
             viewer.remove();
             document.removeEventListener('keydown', closeHandler, true);
             // 恢复 gallery 的键盘处理
-            this._setupKeyboard('album', this.engine.cgList || []);
+            console.log('[Gallery] Restoring keyboard handler for gallery');
+            // 延迟恢复，确保当前按键事件已完全处理
+            setTimeout(() => {
+                this._setupKeyboard('album', this.engine.cgList || []);
+                // 重新设置engine标志
+                this.engine.isCgViewerOpen = false;
+            }, 100);
         };
         
         viewer.querySelector('.cg-viewer-close')?.addEventListener('click', closeViewer);
@@ -350,8 +365,11 @@ class GallerySystem {
         
         // 添加键盘支持（按任意键关闭）
         const closeHandler = (e) => {
+            // 所有按键都关闭查看器
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.log('[Gallery] Closing CG viewer with key:', e.key);
             closeViewer();
         };
         document.addEventListener('keydown', closeHandler, true);
@@ -656,71 +674,84 @@ class GallerySystem {
         this._removeKeyboard();
         
         this.keyHandler = (e) => {
-            e.stopImmediatePropagation();
+            console.log('[Gallery] Key pressed:', e.key);
             
             // 使用按键映射（处理屏幕旋转）
             const key = window.mapKeyForRotation ? window.mapKeyForRotation(e.key) : e.key;
             
-            // 根据屏幕宽度动态计算列数
-            let cols = 1;
-            if (mode === 'album') {
-                // 小屏幕 2 列，中屏幕 3 列，大屏幕 4 列
-                if (window.innerWidth <= 250) {
-                    cols = 2;
-                } else if (window.innerWidth <= 400) {
-                    cols = 3;
-                } else {
-                    cols = 4;
-                }
-            }
+            // CG鉴赏固定2列布局
+            const cols = 2;
             
             switch (key) {
                 case 'ArrowUp':
                 case '2':
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
                     this.selectedIndex = Math.max(0, this.selectedIndex - cols);
                     this._updateSelection();
-                    e.preventDefault();
+                    console.log('[Gallery] ArrowUp, new index:', this.selectedIndex);
                     break;
                 case 'ArrowDown':
                 case '8':
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
                     this.selectedIndex = Math.min(this.selectables.length - 1, this.selectedIndex + cols);
                     this._updateSelection();
-                    e.preventDefault();
+                    console.log('[Gallery] ArrowDown, new index:', this.selectedIndex);
                     break;
                 case 'ArrowLeft':
                 case '4':
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
                     if (this.selectedIndex > 0) {
                         this.selectedIndex--;
                         this._updateSelection();
+                        console.log('[Gallery] ArrowLeft, new index:', this.selectedIndex);
                     }
-                    e.preventDefault();
                     break;
                 case 'ArrowRight':
                 case '6':
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
                     if (this.selectedIndex < this.selectables.length - 1) {
                         this.selectedIndex++;
                         this._updateSelection();
+                        console.log('[Gallery] ArrowRight, new index:', this.selectedIndex);
                     }
-                    e.preventDefault();
                     break;
                 case 'Enter':
                 case '5':
                 case ' ':
-                case 'SoftLeft':
-                    this._confirmSelection(mode, list);
                     e.preventDefault();
+                    e.stopImmediatePropagation();
+                    this._confirmSelection(mode, list);
+                    console.log('[Gallery] Enter/Confirm');
                     break;
                 case 'Escape':
                 case 'Backspace':
+                case 'SoftRight':
+                case 'E':
+                case 'e':
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    this.close();
+                    console.log('[Gallery] Close/Back');
+                    break;
+                case '*':
                 case '0':
                 case '#':
-                    this.close();
+                case 'SoftLeft':
+                    // 阻止菜单键
                     e.preventDefault();
+                    e.stopImmediatePropagation();
+                    console.log('[Gallery] Menu key blocked:', key);
                     break;
             }
         };
         
         document.addEventListener('keydown', this.keyHandler, true);
+        console.log('[Gallery] Keyboard setup complete, selectables:', this.selectables.length);
     }
 
     /**
@@ -823,14 +854,69 @@ class GallerySystem {
      * @private
      */
     _updateSelection() {
+        console.log('[Gallery] Updating selection:', this.selectedIndex, 'of', this.selectables.length);
+        
         this.selectables.forEach((el, i) => {
             if (i === this.selectedIndex) {
                 el.classList.add('selected');
-                el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                
+                // 立即尝试一次滚动（无延迟）
+                this._scrollToElement(el);
+                
+                // 再次延迟滚动，确保横屏旋转后也能正常工作
+                setTimeout(() => {
+                    this._scrollToElement(el);
+                }, 100);
+                
+                console.log('[Gallery] Selected item:', i, el);
             } else {
                 el.classList.remove('selected');
             }
         });
+    }
+    
+    /**
+     * 滚动到指定元素
+     * @private
+     */
+    _scrollToElement(el) {
+        // 查找滚动容器
+        const container = el.closest('.gallery-grid, .save-slots, .config-items') || 
+                         el.closest('.gallery-panel')?.querySelector('.gallery-grid') ||
+                         el.closest('.save-modal')?.querySelector('.save-slots') ||
+                         el.parentElement;
+        
+        if (!container) {
+            console.warn('[Gallery] Could not find scroll container for element');
+            return;
+        }
+        
+        // 使用绝对定位计算滚动
+        const containerTop = container.scrollTop;
+        const containerHeight = container.clientHeight;
+        const elOffsetTop = el.offsetTop;
+        const elHeight = el.offsetHeight;
+        
+        console.log('[Gallery] Scroll calculation:', {
+            containerScrollTop: containerTop,
+            containerHeight: containerHeight,
+            elOffsetTop: elOffsetTop,
+            elHeight: elHeight,
+            containerScrollHeight: container.scrollHeight
+        });
+        
+        // 如果元素在可视区域上方
+        if (elOffsetTop < containerTop) {
+            container.scrollTop = elOffsetTop - 10;
+            console.log('[Gallery] Scrolled to (up):', container.scrollTop);
+        }
+        // 如果元素在可视区域下方
+        else if (elOffsetTop + elHeight > containerTop + containerHeight) {
+            container.scrollTop = elOffsetTop + elHeight - containerHeight + 10;
+            console.log('[Gallery] Scrolled to (down):', container.scrollTop);
+        } else {
+            console.log('[Gallery] Element is already visible');
+        }
     }
 
     /**

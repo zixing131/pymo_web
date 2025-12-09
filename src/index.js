@@ -21,6 +21,17 @@ try {
     function myopengame(gamename) {
         // 使用新版游戏页面
         // 注意：gamename 可能带有 .zip 后缀，保持原样传递
+        
+        // 备用方案：使用 sessionStorage 存储游戏名称（防止 URL 参数丢失）
+        try {
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('pymo_game_name', gamename);
+            }
+        } catch (err) {
+            console.warn('[myopengame] Cannot use sessionStorage:', err);
+        }
+        
+        // 主要方案：通过 URL 参数传递
         const href = 'game_new.html?game=' + encodeURIComponent(gamename);
         window.location.href = href;
     }
@@ -111,8 +122,8 @@ try {
                 ZipStore.deleteZip(gamename).then(
                     () => {
                         showDialog("提示", gamename + " 删除成功！");
-                        refreshGameList();
-                    },
+				refreshGameList();
+		},  
                     (err) => {
                         showDialog("提示", gamename + " 删除失败！");
                     }
@@ -230,8 +241,8 @@ try {
         const gamename = card.dataset.gamename;
         if (card.dataset.error === 'true') {
             showDialog("提示", "游戏文件损坏，无法启动！");
-            return;
-        }
+        return;
+    }
         myopengame(gamename);
     };
 
@@ -245,7 +256,7 @@ try {
         if (!file.name.toLowerCase().endsWith('.zip')) {
             showDialog("提示", "只能上传 .zip 格式的游戏包！");
             e.target.value = null;
-            return;
+        return;
         }
         
         // 开始安装
@@ -474,56 +485,242 @@ try {
     // ==================== 菜单和对话框 ====================
 
     function loadMenu() {
-        const menuitems = document.getElementById("menuitems");
-        if (menuitems) {
-            const menus = mainmenulist.map((item, index) => 
-                `<div class="menuitem" focusable data-index="${index}">
-                    <span class="menuitem-icon">${item[0]}</span>
-                    <span class="menuitem-text">${item[1]}</span>
-                </div>`
-            );
+        try {
+            const menuitems = document.getElementById("menuitems");
+            if (!menuitems) {
+                console.error('[loadMenu] menuitems element not found');
+        return;
+    }
+		
+            if (!mainmenulist || !Array.isArray(mainmenulist)) {
+                console.error('[loadMenu] mainmenulist is not defined or not an array');
+        return;
+    }
+            
+            const menus = mainmenulist.map((item, index) => {
+                if (!item || !Array.isArray(item) || item.length < 3) {
+                    console.warn(`[loadMenu] Invalid menu item at index ${index}:`, item);
+                    return '';
+                }
+                return `<div class="menuitem" focusable data-index="${index}">
+                    <span class="menuitem-icon">${item[0] || ''}</span>
+                    <span class="menuitem-text">${item[1] || ''}</span>
+                </div>`;
+            }).filter(html => html !== '');
+            
             menuitems.innerHTML = menus.join('');
             
-            // 添加鼠标点击事件
+            // 添加点击和触摸事件（KaiOS 兼容）
             menuitems.querySelectorAll('.menuitem').forEach((menuItem, index) => {
-                menuItem.addEventListener('click', () => {
-                    closeMenu();
-                    mainmenulist[index][2]();
-                });
+                const handleMenuClick = function(e) {
+                    if (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                    }
+                    try {
+                        closeMenu();
+                        if (mainmenulist[index] && mainmenulist[index][2] && typeof mainmenulist[index][2] === 'function') {
+                            mainmenulist[index][2]();
+                        } else {
+                            console.error(`[loadMenu] Invalid callback for menu item ${index}`);
+                        }
+                    } catch (err) {
+                        console.error('[loadMenu] Error executing menu item callback:', err);
+                    }
+                    return false;
+                };
+                
+                // 使用 onclick 属性（更兼容老版本浏览器）
+                menuItem.onclick = handleMenuClick;
+                
+                // 点击事件（捕获阶段）
+                menuItem.addEventListener('click', handleMenuClick, true);
+                // 触摸开始事件（KaiOS 兼容）
+                menuItem.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleMenuClick(e);
+                }, true);
+                // 触摸结束事件（KaiOS 兼容）
+                menuItem.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleMenuClick(e);
+                }, true);
+                // 鼠标按下事件（备用）
+                menuItem.addEventListener('mousedown', function(e) {
+                    // 不阻止，让点击事件正常触发
+                }, true);
             });
+        } catch (err) {
+            console.error('[loadMenu] Error loading menu:', err);
         }
     }
 
     function showMenu() {
-        loadMenu();
-        disableAppList();
-        const menu = document.getElementById("menu");
-        menu.style.display = "flex";
-        saveMenuName();
-        setLeftKeyName("选择");
-        setCenterKeyName("");
-        setRightKeyName("返回");
-        
-        // 点击遮罩关闭菜单
-        menu.onclick = function(e) {
-            if (e.target === menu) {
-                closeMenu();
+        try {
+            loadMenu();
+            disableAppList();
+            
+            const menu = document.getElementById("menu");
+            if (!menu) {
+                console.error('[showMenu] menu element not found');
+                return;
             }
-        };
-        
-        // 设置滚动容器为菜单内容区域
-        const menuitems = document.getElementById("menuitems");
-        if (typeof focusable !== 'undefined') {
-            focusable.scrollEl = menuitems;
-        }
-        
-        const firstItem = document.querySelector('.menuitem');
-        if (firstItem && typeof focusable !== 'undefined') {
-            focusable.requestFocus(firstItem);
+            
+            menu.style.display = "flex";
+            
+            try {
+                saveMenuName();
+            } catch (err) {
+                console.warn('[showMenu] Error saving menu name:', err);
+            }
+            
+            setLeftKeyName("选择");
+            setCenterKeyName("");
+            setRightKeyName("返回");
+            
+            // 点击遮罩关闭菜单
+            menu.onclick = function(e) {
+                if (e.target === menu) {
+                    closeMenu();
+                }
+            };
+            
+            // 设置滚动容器为菜单内容区域
+            const menuitems = document.getElementById("menuitems");
+            if (typeof focusable !== 'undefined' && focusable) {
+                try {
+                    if (menuitems) {
+                        focusable.scrollEl = menuitems;
+                    }
+                } catch (err) {
+                    console.warn('[showMenu] Error setting scrollEl:', err);
+                }
+            }
+            
+            // 延迟聚焦，确保 DOM 已更新
+            setTimeout(() => {
+                try {
+                    const firstItem = document.querySelector('.menuitem');
+                    if (firstItem) {
+                        if (typeof focusable !== 'undefined' && focusable && typeof focusable.requestFocus === 'function') {
+                            focusable.requestFocus(firstItem);
+                        } else {
+                            // 如果 focusable 不可用，手动设置焦点
+                            firstItem.setAttribute('focused', '');
+                            firstItem.classList.add('focus');
+                            // 手动滚动到第一个项目
+                            if (menuitems) {
+                                menuitems.scrollTop = 0;
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[showMenu] Error focusing first menu item:', err);
+                }
+            }, 50);
+            
+            // 添加手动滚动处理（KaiOS 兼容）
+            setupMenuScrollHandler();
+        } catch (err) {
+            console.error('[showMenu] Error showing menu:', err);
+            // 确保菜单至少能显示
+            const menu = document.getElementById("menu");
+            if (menu) {
+                menu.style.display = "flex";
+            }
         }
     }
 
+    let menuScrollHandler = null;
+    
+    function setupMenuScrollHandler() {
+        // 移除旧的处理器
+        if (menuScrollHandler) {
+            document.removeEventListener('onFocus', menuScrollHandler);
+            document.removeEventListener('keydown', menuScrollHandler);
+        }
+        
+        // 创建新的处理器
+        menuScrollHandler = function(e) {
+            try {
+                const menu = document.getElementById("menu");
+                if (!menu || menu.style.display !== "flex") {
+                    return;
+                }
+                
+                const menuitems = document.getElementById("menuitems");
+                if (!menuitems) return;
+                
+                // 处理焦点变化事件
+                if (e.type === 'onFocus' && e.detail && e.detail.el) {
+                    const focusedItem = e.detail.el;
+                    if (focusedItem && focusedItem.classList.contains('menuitem')) {
+                        scrollMenuItemIntoView(focusedItem, menuitems);
+                    }
+                }
+                
+                // 处理键盘事件（手动滚动）
+                if (e.type === 'keydown') {
+                    const key = e.key || e.keyCode;
+                    if (key === 'ArrowDown' || key === 40 || key === 'ArrowUp' || key === 38) {
+                        setTimeout(() => {
+                            const focusedItem = document.querySelector('.menuitem.focus') || 
+                                              document.querySelector('.menuitem[focused]');
+                            if (focusedItem) {
+                                scrollMenuItemIntoView(focusedItem, menuitems);
+                            }
+                        }, 10);
+                    }
+                }
+            } catch (err) {
+                console.warn('[setupMenuScrollHandler] Error:', err);
+            }
+        };
+        
+        // 监听焦点变化
+        document.addEventListener('onFocus', menuScrollHandler, true);
+        // 监听键盘事件
+        document.addEventListener('keydown', menuScrollHandler, true);
+    }
+    
+    function scrollMenuItemIntoView(item, container) {
+        try {
+            if (!item || !container) return;
+            
+            const itemRect = item.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const scrollTop = container.scrollTop || 0;
+            
+            // 计算项目相对于容器的位置
+            const itemTop = itemRect.top - containerRect.top + scrollTop;
+            const itemBottom = itemTop + itemRect.height;
+            const containerHeight = containerRect.height;
+            const currentScrollTop = scrollTop;
+            
+            // 如果项目在可视区域上方，向上滚动
+            if (itemTop < currentScrollTop) {
+                container.scrollTop = itemTop - 10;
+            }
+            // 如果项目在可视区域下方，向下滚动
+            else if (itemBottom > currentScrollTop + containerHeight) {
+                container.scrollTop = itemBottom - containerHeight + 10;
+            }
+        } catch (err) {
+            console.warn('[scrollMenuItemIntoView] Error:', err);
+        }
+    }
+    
     function closeMenu() {
+        // 移除菜单滚动处理器
+        if (menuScrollHandler) {
+            document.removeEventListener('onFocus', menuScrollHandler);
+            document.removeEventListener('keydown', menuScrollHandler);
+            menuScrollHandler = null;
+        }
+        
         const menu = document.getElementById("menu");
         menu.style.display = "none";
         menu.onclick = null;
@@ -544,7 +741,7 @@ try {
         const alertheader = document.getElementById("alertheader");
         const alerttext = document.getElementById("alerttext");
         alertheader.innerText = title;
-        alerttext.innerText = content;
+    alerttext.innerText = content;
         
         document.getElementById("alertDialog").style.display = "flex";
         document.getElementById("alert-cancel").style.display = "none";
@@ -627,44 +824,95 @@ try {
     }
 
     function saveMenuName() {
-        keyNameStack.left.push(document.getElementById("softkeyleft").innerText);
-        keyNameStack.center.push(document.getElementById("softkeycenter").innerText);
-        keyNameStack.right.push(document.getElementById("softkeyright").innerText);
+        try {
+            const leftEl = document.getElementById("softkeyleft");
+            const centerEl = document.getElementById("softkeycenter");
+            const rightEl = document.getElementById("softkeyright");
+            
+            if (leftEl) {
+                keyNameStack.left.push(leftEl.innerText || leftEl.textContent || '');
+            }
+            if (centerEl) {
+                keyNameStack.center.push(centerEl.innerText || centerEl.textContent || '');
+            }
+            if (rightEl) {
+                keyNameStack.right.push(rightEl.innerText || rightEl.textContent || '');
+            }
+        } catch (err) {
+            console.warn('[saveMenuName] Error saving menu name:', err);
+        }
     }
 
     function restoreMenuName() {
-        const left = keyNameStack.left.pop();
-        if (left !== undefined) {
-            setLeftKeyName(left);
-            setCenterKeyName(keyNameStack.center.pop());
-            setRightKeyName(keyNameStack.right.pop());
+        try {
+            const left = keyNameStack.left.pop();
+            if (left !== undefined) {
+                setLeftKeyName(left);
+                const center = keyNameStack.center.pop();
+                const right = keyNameStack.right.pop();
+                if (center !== undefined) {
+                    setCenterKeyName(center);
+                }
+                if (right !== undefined) {
+                    setRightKeyName(right);
+                }
+            }
+        } catch (err) {
+            console.warn('[restoreMenuName] Error restoring menu name:', err);
         }
     }
 
     // ==================== 软键事件 ====================
 
     function softleft() {
-        const alertDialog = document.getElementById("alertDialog");
-        if (alertDialog.style.display !== "none") {
-            // 在对话框显示时，左键应该是取消（KaiOS 习惯）
-            closeDialog();
-            return;
-        }
-        
-        const menu = document.getElementById("menu");
-        if (menu.style.display === "flex") {
-            const fc = document.querySelector(".menuitem.focus");
-            if (fc) {
-                const index = parseInt(fc.dataset.index);
-                if (!isNaN(index) && mainmenulist[index]) {
-                    closeMenu();
-                    mainmenulist[index][2]();
-                    return;
-                }
+        try {
+            // 优先检查对话框
+            const alertDialog = document.getElementById("alertDialog");
+            if (alertDialog && alertDialog.style.display !== "none") {
+                // 在对话框显示时，左键应该是取消（KaiOS 习惯）
+                closeDialog();
+                return;
             }
-            closeMenu();
-        } else {
-            showMenu();
+            
+            // 然后检查菜单
+            const menu = document.getElementById("menu");
+            if (menu && menu.style.display === "flex") {
+                // 查找当前聚焦的菜单项
+                const fc = document.querySelector(".menuitem.focus") || 
+                          document.querySelector(".menuitem[focused]");
+                if (fc) {
+                    const index = parseInt(fc.dataset.index);
+                    if (!isNaN(index) && mainmenulist && mainmenulist[index]) {
+                        // 直接触发菜单项的点击事件
+                        try {
+                            if (fc.onclick) {
+                                fc.onclick();
+                            } else {
+                                // 如果没有 onclick，直接调用回调
+                                closeMenu();
+                                const callback = mainmenulist[index][2];
+                                if (callback && typeof callback === 'function') {
+                                    callback();
+                                } else {
+                                    console.error(`[softleft] Invalid callback for menu item ${index}`);
+                                }
+                            }
+                        } catch (err) {
+                            console.error('[softleft] Error executing menu item:', err);
+                            // 如果出错，至少关闭菜单
+                            closeMenu();
+                        }
+                        return;
+                    }
+                }
+                // 如果没有聚焦项，关闭菜单
+                closeMenu();
+            } else {
+                // 菜单未打开，打开菜单
+                showMenu();
+            }
+        } catch (err) {
+            console.error('[softleft] Error:', err);
         }
     }
 
@@ -699,21 +947,29 @@ try {
     }
 
     function softright() {
-        const alertDialog = document.getElementById("alertDialog");
-        if (alertDialog.style.display !== "none") {
-            // 在对话框显示时，右键应该是确认（KaiOS 习惯）
-            if (confirmCallback) {
-                confirmCallback();
+        try {
+            // 优先检查对话框
+            const alertDialog = document.getElementById("alertDialog");
+            if (alertDialog && alertDialog.style.display !== "none") {
+                // 在对话框显示时，右键应该是确认（KaiOS 习惯）
+                if (confirmCallback) {
+                    confirmCallback();
+                }
+                closeDialog();
+                return;
             }
-            closeDialog();
-            return;
-        }
-        
-        const menu = document.getElementById("menu");
-        if (menu.style.display === "flex") {
-            closeMenu();
-        } else {
+            
+            // 然后检查菜单
+            const menu = document.getElementById("menu");
+            if (menu && menu.style.display === "flex") {
+                closeMenu();
+                return;
+            }
+            
+            // 最后才是退出
             exit();
+        } catch (err) {
+            console.error('[softright] Error:', err);
         }
     }
 
@@ -723,13 +979,117 @@ try {
         // 在 KaiOS 上，软键可能使用不同的键码
         const key = e.key || e.keyCode;
         
+        // 如果菜单打开，处理菜单内的键盘操作
+        const menu = document.getElementById("menu");
+        if (menu && menu.style.display === "flex") {
+            // 优先处理关闭菜单的按键
+            if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'E' || e.key === 'e' || 
+                e.key === 'SoftRight' || e.keyCode === 27 || e.keyCode === 8 || e.keyCode === 114) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeMenu();
+                return false;
+            }
+            
+            const focusedItem = document.querySelector('.menuitem.focus') || 
+                              document.querySelector('.menuitem[focused]');
+            
+            if (focusedItem) {
+                switch (e.key) {
+                    case 'Enter':
+                    case 13: // Enter keyCode
+                    case ' ': // 空格键
+                    case 32: // 空格 keyCode
+                        // 触发菜单项点击
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        try {
+                            // 优先使用 onclick 属性
+                            if (focusedItem.onclick) {
+                                focusedItem.onclick();
+                            } else {
+                                // 如果没有 onclick，直接调用回调
+                                const index = parseInt(focusedItem.dataset.index);
+                                if (!isNaN(index) && mainmenulist && mainmenulist[index]) {
+                                    closeMenu();
+                                    const callback = mainmenulist[index][2];
+                                    if (callback && typeof callback === 'function') {
+                                        callback();
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.error('[handleKeydown] Error executing menu item:', err);
+                        }
+                        return false;
+                    case 'ArrowDown':
+                    case 40: // Down arrow keyCode
+                        // 手动导航到下一个菜单项（如果 focusable 不工作）
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                            const allItems = Array.from(document.querySelectorAll('.menuitem'));
+                            const currentIndex = allItems.indexOf(focusedItem);
+                            if (currentIndex >= 0 && currentIndex < allItems.length - 1) {
+                                const nextItem = allItems[currentIndex + 1];
+                                if (nextItem) {
+                                    // 移除旧焦点
+                                    focusedItem.classList.remove('focus');
+                                    focusedItem.removeAttribute('focused');
+                                    // 设置新焦点
+                                    nextItem.classList.add('focus');
+                                    nextItem.setAttribute('focused', '');
+                                    // 滚动到新项目
+                                    const menuitems = document.getElementById("menuitems");
+                                    if (menuitems) {
+                                        scrollMenuItemIntoView(nextItem, menuitems);
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.warn('[handleKeydown] Error navigating menu:', err);
+                        }
+                        return false;
+                    case 'ArrowUp':
+                    case 38: // Up arrow keyCode
+                        // 手动导航到上一个菜单项
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                            const allItems = Array.from(document.querySelectorAll('.menuitem'));
+                            const currentIndex = allItems.indexOf(focusedItem);
+                            if (currentIndex > 0) {
+                                const prevItem = allItems[currentIndex - 1];
+                                if (prevItem) {
+                                    // 移除旧焦点
+                                    focusedItem.classList.remove('focus');
+                                    focusedItem.removeAttribute('focused');
+                                    // 设置新焦点
+                                    prevItem.classList.add('focus');
+                                    prevItem.setAttribute('focused', '');
+                                    // 滚动到新项目
+                                    const menuitems = document.getElementById("menuitems");
+                                    if (menuitems) {
+                                        scrollMenuItemIntoView(prevItem, menuitems);
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.warn('[handleKeydown] Error navigating menu:', err);
+                        }
+                        return false;
+                }
+            }
+        }
+        
         switch (e.key) {
             case 'Enter':
             case 13: // Enter keyCode
                 softcenter();
                 break;
             case 'Escape':
-            case 'Backspace':
+        case 'Backspace': 
             case 27: // Escape keyCode
             case 8: // Backspace keyCode
                 const menu = document.getElementById("menu");
@@ -738,20 +1098,20 @@ try {
                     softright();
                     e.preventDefault();
                 }
-                break;
-            case 'Q':
+            break;
+        case 'Q':
             case 'q':
             case '*':
-            case 'SoftLeft':
+        case 'SoftLeft':
             case 113: // F2 (通常映射为 SoftLeft)
             case 106: // * 键的 keyCode
                 softleft();
                 e.preventDefault();
                 e.stopPropagation();
                 return false;
-            case 'E':
+        case 'E':
             case 'e':
-            case 'SoftRight':
+        case 'SoftRight':
             case 114: // F3 (通常映射为 SoftRight)
                 softright();
                 e.preventDefault();

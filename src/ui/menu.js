@@ -91,15 +91,93 @@ class MenuSystem {
      * @private
      */
     _updateSelection() {
-        this.selectableItems.forEach((item, index) => {
-            if (index === this.selectedIndex) {
-                item.classList.add('selected');
-                // 确保选中项可见
-                item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            } else {
-                item.classList.remove('selected');
-            }
+        // 先移除所有选中状态，避免残影
+        this.selectableItems.forEach((item) => {
+            item.classList.remove('selected');
+            // 强制重绘，消除残影
+            item.style.willChange = 'auto';
         });
+        
+        // 然后添加当前选中项
+        const selectedItem = this.selectableItems[this.selectedIndex];
+        if (selectedItem) {
+            // 使用 requestAnimationFrame 确保状态更新
+            requestAnimationFrame(() => {
+                selectedItem.classList.add('selected');
+                selectedItem.style.willChange = 'background-color, border-color';
+                // 确保选中项可见 - 根据当前面板类型选择滚动容器
+                this._scrollToSelected(selectedItem);
+            });
+        }
+    }
+    
+    /**
+     * 滚动到选中项
+     * @private
+     */
+    _scrollToSelected(item) {
+        if (!item) return;
+        
+        // 立即尝试一次滚动
+        this._doScroll(item);
+        
+        // 再次延迟滚动，确保横屏旋转后也能正常工作
+        setTimeout(() => {
+            this._doScroll(item);
+        }, 100);
+    }
+    
+    /**
+     * 执行滚动操作
+     * @private
+     */
+    _doScroll(item) {
+        // 查找滚动容器
+        let scrollContainer = null;
+        
+        // 如果是存档面板，查找 .save-slots
+        if (this.currentPanel === 'save' || this.currentPanel === 'load') {
+            scrollContainer = this.overlay?.querySelector('.save-slots');
+        } else if (this.currentPanel === 'config') {
+            scrollContainer = this.overlay?.querySelector('.config-items');
+        } else {
+            // 默认使用父容器
+            scrollContainer = item.parentElement;
+        }
+        
+        if (scrollContainer) {
+            // 使用绝对定位计算滚动
+            const containerTop = scrollContainer.scrollTop;
+            const containerHeight = scrollContainer.clientHeight;
+            const itemOffsetTop = item.offsetTop;
+            const itemHeight = item.offsetHeight;
+            
+            console.log('[Menu] Scroll calculation - Panel:', this.currentPanel);
+            console.log('[Menu] Values:', {
+                containerScrollTop: containerTop,
+                containerHeight: containerHeight,
+                itemOffsetTop: itemOffsetTop,
+                itemHeight: itemHeight,
+                containerScrollHeight: scrollContainer.scrollHeight
+            });
+            
+            // 如果元素在可视区域上方
+            if (itemOffsetTop < containerTop) {
+                scrollContainer.scrollTop = itemOffsetTop - 10;
+                console.log('[Menu] Scrolled to (up):', scrollContainer.scrollTop);
+            }
+            // 如果元素在可视区域下方
+            else if (itemOffsetTop + itemHeight > containerTop + containerHeight) {
+                scrollContainer.scrollTop = itemOffsetTop + itemHeight - containerHeight + 10;
+                console.log('[Menu] Scrolled to (down):', scrollContainer.scrollTop);
+            } else {
+                console.log('[Menu] Item is already visible');
+            }
+        } else {
+            console.warn('[Menu] Could not find scroll container');
+            // 如果没有找到滚动容器，使用默认的 scrollIntoView
+            item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
     }
 
     /**
