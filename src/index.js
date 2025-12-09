@@ -646,9 +646,7 @@ try {
     function softleft() {
         const alertDialog = document.getElementById("alertDialog");
         if (alertDialog.style.display !== "none") {
-            if (confirmCallback) {
-                confirmCallback();
-            }
+            // 在对话框显示时，左键应该是取消（KaiOS 习惯）
             closeDialog();
             return;
         }
@@ -673,6 +671,7 @@ try {
     function softcenter() {
         const alertDialog = document.getElementById("alertDialog");
         if (alertDialog.style.display !== "none") {
+            // 在对话框显示时，中键（OK）应该是确认
             if (confirmCallback) {
                 confirmCallback();
             }
@@ -702,6 +701,10 @@ try {
     function softright() {
         const alertDialog = document.getElementById("alertDialog");
         if (alertDialog.style.display !== "none") {
+            // 在对话框显示时，右键应该是确认（KaiOS 习惯）
+            if (confirmCallback) {
+                confirmCallback();
+            }
             closeDialog();
             return;
         }
@@ -717,12 +720,18 @@ try {
     // ==================== 键盘事件 ====================
 
     function handleKeydown(e) {
+        // 在 KaiOS 上，软键可能使用不同的键码
+        const key = e.key || e.keyCode;
+        
         switch (e.key) {
             case 'Enter':
+            case 13: // Enter keyCode
                 softcenter();
                 break;
             case 'Escape':
             case 'Backspace':
+            case 27: // Escape keyCode
+            case 8: // Backspace keyCode
                 const menu = document.getElementById("menu");
                 const alertDialog = document.getElementById("alertDialog");
                 if (menu.style.display === "flex" || alertDialog.style.display !== "none") {
@@ -731,15 +740,23 @@ try {
                 }
                 break;
             case 'Q':
+            case 'q':
+            case '*':
             case 'SoftLeft':
+            case 113: // F2 (通常映射为 SoftLeft)
+            case 106: // * 键的 keyCode
                 softleft();
                 e.preventDefault();
-                break;
+                e.stopPropagation();
+                return false;
             case 'E':
+            case 'e':
             case 'SoftRight':
+            case 114: // F3 (通常映射为 SoftRight)
                 softright();
                 e.preventDefault();
-                break;
+                e.stopPropagation();
+                return false;
         }
     }
 
@@ -752,10 +769,26 @@ try {
         document.getElementById("btn-install")?.addEventListener("click", installgame);
         document.getElementById("btn-refresh")?.addEventListener("click", refreshGameList);
         
-        // 软键点击
-        document.getElementById('softkeyleft').onclick = softleft;
-        document.getElementById('softkeyright').onclick = softright;
-        document.getElementById('softkeycenter').onclick = softcenter;
+        // 软键点击（KaiOS 兼容）
+        const softkeyleft = document.getElementById('softkeyleft');
+        const softkeyright = document.getElementById('softkeyright');
+        const softkeycenter = document.getElementById('softkeycenter');
+        
+        if (softkeyleft) {
+            softkeyleft.onclick = softleft;
+            softkeyleft.ontouchstart = softleft; // 触摸事件
+            softkeyleft.addEventListener('click', softleft, true); // 捕获阶段
+        }
+        if (softkeyright) {
+            softkeyright.onclick = softright;
+            softkeyright.ontouchstart = softright; // 触摸事件
+            softkeyright.addEventListener('click', softright, true); // 捕获阶段
+        }
+        if (softkeycenter) {
+            softkeycenter.onclick = softcenter;
+            softkeycenter.ontouchstart = softcenter; // 触摸事件
+            softkeycenter.addEventListener('click', softcenter, true); // 捕获阶段
+        }
         
         // 对话框按钮
         document.getElementById('alert-confirm')?.addEventListener('click', () => {
@@ -766,8 +799,9 @@ try {
         });
         document.getElementById('alert-cancel')?.addEventListener('click', closeDialog);
         
-        // 键盘事件
-        window.addEventListener('keydown', handleKeydown);
+        // 键盘事件（KaiOS 兼容）
+        window.addEventListener('keydown', handleKeydown, true); // 捕获阶段，确保优先处理
+        document.addEventListener('keydown', handleKeydown, true); // 文档级别
         
         // 焦点变化时自动滚动
         document.addEventListener('onFocus', (e) => {
