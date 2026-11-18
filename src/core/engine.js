@@ -500,10 +500,22 @@ class PyMOEngine {
 
     async _showConfig() {
         if (this.menu) {
-            this.menu.showConfigPanel();
+            await new Promise((resolve) => {
+                this.menu.showConfigPanel(resolve);
+            });
         } else {
             console.warn('Menu system not initialized');
         }
+    }
+
+    /**
+     * 按路径读包内文件，大小写不敏感
+     */
+    readFileBytes(path) {
+        const zip = this.gameData && this.gameData.Zip;
+        if (!zip || !path) return null;
+        const hit = zip[path] || zip[path.toLowerCase()] || zip[path.toUpperCase()];
+        return hit ? hit.compressed_data : null;
     }
 
     /**

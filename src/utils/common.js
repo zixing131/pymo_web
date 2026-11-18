@@ -151,13 +151,29 @@ if (typeof ZipStore === 'undefined') {
                     };
 
                     transaction.oncomplete = () => {
-                        if (request.result) {
-                            this.cache[gameName] = request.result;
-                            resolve(request.result);
-                        } else {
+                        const rec = request.result;
+                        if (!rec) {
                             console.error('Game not found in database:', gameName);
                             resolve(null);
+                            return;
                         }
+                        if (rec.Zip) {
+                            this.cache[gameName] = rec;
+                            resolve(rec);
+                            return;
+                        }
+                        if (rec.zipBlob && typeof expandGameZip === 'function') {
+                            expandGameZip(rec.zipBlob).then((Zip) => {
+                                const full = { ZipName: rec.ZipName, Zip: Zip };
+                                this.cache[gameName] = full;
+                                resolve(full);
+                            }).catch((err) => {
+                                console.error('Failed to expand game zip:', err);
+                                reject(err);
+                            });
+                            return;
+                        }
+                        resolve(null);
                     };
                 });
             } catch (e) {

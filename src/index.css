@@ -382,7 +382,7 @@ body {
     padding: 0 16px;
     font-size: 13px;
     color: var(--text-secondary);
-    z-index: 50;
+    z-index: 400;
 }
 
 #softkeyleft,

@@ -117,7 +117,7 @@ class SelectionSystem {
                 }
                 
                 // 文字
-                const fontSize = config.get('fontsize');
+                const fontSize = config.fontSize();
                 const text = choices[i];
                 const textWidth = graphics.ctx.measureText(text).width || text.length * fontSize;
                 const textX = startX + (optionW - textWidth) / 2;
@@ -251,50 +251,60 @@ class SelectionSystem {
         const screenW = graphics.screenSize[0];
         const screenH = graphics.screenSize[1];
         
-        // 计算区域
+        // 百分比矩形，排版和 CPyMO 的 select_text 一样：
+        // 每行高度是字号 + 1，先从上往下排，再把整组在矩形里垂直居中。
         const left = x1 * screenW / 100;
         const top = y1 * screenH / 100;
         const right = x2 * screenW / 100;
         const bottom = y2 * screenH / 100;
-        const width = right - left;
-        const height = bottom - top;
-        
-        // 计算选项布局
-        const fontSize = config.get('fontsize');
-        const lineHeight = fontSize + 8;
-        const totalHeight = choices.length * lineHeight;
-        const startY = top + (height - totalHeight) / 2;
-        
+        const width = Math.max(1, right - left);
+        const fontSize = config.fontSize();
+        const lineHeight = fontSize + 1;
+        graphics.ctx.font = `${fontSize}px sans-serif`;
+
+        const layout = () => {
+            let y = top;
+            const rows = choices.map((text, index) => {
+                const textWidth = graphics.ctx.measureText(text).width || text.length * fontSize;
+                const row = {
+                    text,
+                    index,
+                    textX: left + (width - textWidth) / 2,
+                    y,
+                    baseline: y + lineHeight,
+                    height: lineHeight
+                };
+                y += lineHeight;
+                return row;
+            });
+            const offset = (bottom - y) / 2;
+            rows.forEach((row) => {
+                row.y += offset;
+                row.baseline += offset;
+            });
+            return rows;
+        };
+
+        const rows = layout();
+        this._optionAreas = rows.map((row) => ({
+            x: left,
+            y: row.y,
+            width: width,
+            height: row.height,
+            index: row.index
+        }));
+
         const render = () => {
             graphics.finalImg.blit(graphics.charaOn ? graphics.charaImg : graphics.bgImg);
-            
-            for (let i = 0; i < choices.length; i++) {
-                const text = choices[i];
-                const textWidth = graphics.ctx.measureText(text).width || text.length * fontSize;
-                const textX = left + (width - textWidth) / 2;
-                const textY = startY + i * lineHeight + fontSize;
-                
-                const textColor = i === this.currentSelection ? '#ffff00' : color;
-                graphics._drawText(text, textX, textY, textColor, fontSize);
-            }
-            
+            rows.forEach((row) => {
+                const textColor = row.index === this.currentSelection ? '#ffff00' : color;
+                const nudge = row.index === this.currentSelection ? screenW * 0.005 : 0;
+                graphics._drawText(row.text, row.textX + nudge, row.baseline - screenH * 0.005, textColor, fontSize);
+            });
             graphics.updateScreen();
         };
-        
+
         render();
-        
-        // 保存选项区域信息
-        this._optionAreas = choices.map((text, i) => {
-            const textWidth = graphics.ctx.measureText(text).width || text.length * fontSize;
-            const textX = left + (width - textWidth) / 2;
-            return {
-                x: left,
-                y: startY + i * lineHeight,
-                width: width,
-                height: lineHeight,
-                index: i
-            };
-        });
         
         return new Promise((resolve) => {
             this.keyHandler = (e) => {
@@ -324,6 +334,15 @@ class SelectionSystem {
                     case ' ':
                     case 'SoftLeft':
                         console.log('[Selection] Confirmed:', this.currentSelection, choices[this.currentSelection]);
+                        this._cleanup();
+                        resolve(this.currentSelection);
+                        e.preventDefault();
+                        break;
+                    case 'Escape':
+                    case 'Backspace':
+                    case 'SoftRight':
+                        // CPyMO 的 select_text 按取消会落到最后一项（通常是退出）
+                        this.currentSelection = choices.length - 1;
                         this._cleanup();
                         resolve(this.currentSelection);
                         e.preventDefault();
@@ -370,16 +389,33 @@ class SelectionSystem {
                 }
             };
             
+            const hoverPointer = (e) => {
+                if (e.touches || e.changedTouches) return;
+                const point = this._calculateCanvasCoordinates(e.clientX, e.clientY);
+                for (const area of this._optionAreas || []) {
+                    if (point.x >= area.x && point.x <= area.x + area.width &&
+                        point.y >= area.y && point.y <= area.y + area.height) {
+                        if (this.currentSelection !== area.index) {
+                            this.currentSelection = area.index;
+                            render();
+                        }
+                        return;
+                    }
+                }
+            };
+
             this.clickHandler = handlePointer;
+            this.hoverHandler = hoverPointer;
             this.touchHandler = (e) => {
-                e.preventDefault(); // 防止默认行为（如滚动）
+                e.preventDefault();
                 handlePointer(e);
             };
             
             console.log('[Selection] showTextSelection active, choices:', choices);
-            document.addEventListener('keydown', this.keyHandler, true);  // 使用捕获阶段
+            document.addEventListener('keydown', this.keyHandler, true);
             const canvas = this.engine.graphics.canvas;
             canvas.addEventListener('click', this.clickHandler);
+            canvas.addEventListener('mousemove', this.hoverHandler);
             canvas.addEventListener('touchend', this.touchHandler, { passive: false });
         });
     }
@@ -433,6 +469,10 @@ class SelectionSystem {
         if (this.clickHandler && canvas) {
             canvas.removeEventListener('click', this.clickHandler);
             this.clickHandler = null;
+        }
+        if (this.hoverHandler && canvas) {
+            canvas.removeEventListener('mousemove', this.hoverHandler);
+            this.hoverHandler = null;
         }
         if (this.touchHandler && canvas) {
             canvas.removeEventListener('touchend', this.touchHandler);

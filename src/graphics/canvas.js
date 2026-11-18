@@ -227,13 +227,17 @@ class PyMOImage {
      * @param {number[]} source - 源位置 [x, y]（默认 [0, 0]）
      * @param {PyMOImage} mask - 遮罩图像（可选）
      */
-    blit(otherImg, target = [0, 0], source = [0, 0], mask = null) {
+    blit(otherImg, target = [0, 0], source = [0, 0], mask = null, destSize = null) {
         if (!otherImg || !otherImg.canvas) return;
         
         const tx = parseInt(target[0]) || 0;
         const ty = parseInt(target[1]) || 0;
         const sx = parseInt(source[0]) || 0;
         const sy = parseInt(source[1]) || 0;
+        const sw = otherImg.width - sx;
+        const sh = otherImg.height - sy;
+        const dw = destSize ? destSize[0] : sw;
+        const dh = destSize ? destSize[1] : sh;
 
         if (mask && mask.canvas) {
             // 带遮罩绘制
@@ -252,12 +256,10 @@ class PyMOImage {
             }
 
             tempCtx.putImageData(imgData, 0, 0);
-            this.ctx.drawImage(tempCanvas, sx, sy, otherImg.width, otherImg.height, 
-                              tx, ty, otherImg.width, otherImg.height);
+            this.ctx.drawImage(tempCanvas, sx, sy, sw, sh, tx, ty, dw, dh);
         } else {
             // 普通绘制
-            this.ctx.drawImage(otherImg.canvas, sx, sy, otherImg.width, otherImg.height,
-                              tx, ty, otherImg.width, otherImg.height);
+            this.ctx.drawImage(otherImg.canvas, sx, sy, sw, sh, tx, ty, dw, dh);
         }
     }
 

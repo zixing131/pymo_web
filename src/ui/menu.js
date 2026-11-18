@@ -484,7 +484,13 @@ class MenuSystem {
     /**
      * 显示设置面板
      */
-    showConfigPanel() {
+    showConfigPanel(onClose = null) {
+        this._scriptConfigClose = onClose;
+        this._createOverlay();
+        this._applyRotation();
+        this.overlay.style.display = 'flex';
+        this.isOpen = true;
+        this.engine.pause();
         const config = this.engine.config;
         
         // 获取当前屏幕旋转设置
@@ -597,6 +603,10 @@ class MenuSystem {
         // 返回按钮
         const backBtn = panel.querySelector('.back-btn');
         const handleBack = () => {
+            if (this._scriptConfigClose) {
+                this.close();
+                return;
+            }
             this.goBack();
         };
         backBtn.addEventListener('click', handleBack);
@@ -636,6 +646,12 @@ class MenuSystem {
             this.overlay.innerHTML = '';
         }
         this.currentPanel = null;
+
+        if (this._scriptConfigClose) {
+            const done = this._scriptConfigClose;
+            this._scriptConfigClose = null;
+            done();
+        }
         
         // 恢复游戏
         this.engine.resume();

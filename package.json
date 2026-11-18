@@ -7,9 +7,9 @@
     "build:kaios": "babel src -d dist-kaios --config-file ./babel.kaios.json"
   },
   "devDependencies": {
-    "@babel/cli": "^7.28.3",
-    "@babel/core": "^7.28.5",
-    "@babel/preset-env": "^7.28.5"
+    "@babel/cli": "^7.29.7",
+    "@babel/core": "^7.29.13",
+    "@babel/preset-env": "^7.29.14"
   },
   "browserslist": [
     "Firefox >= 48"

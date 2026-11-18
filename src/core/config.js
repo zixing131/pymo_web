@@ -89,7 +89,14 @@ class ConfigManager {
                            'seformat', 'voiceformat', 'cgprefix', 'textcolor'];
         
         if (stringKeys.includes(key)) {
-            return values[0];
+            let value = values[0] || '';
+            // CPyMO 会去掉扩展名前面的点，拼路径时再补上。
+            // bgmformat,mp3 和 bgformat,.png 都要变成 ".mp3" / ".png"。
+            if (['bgformat', 'charaformat', 'charamaskformat', 'bgmformat', 'seformat', 'voiceformat'].includes(key)) {
+                value = value.trim().replace(/^\./, '');
+                if (value) value = '.' + value;
+            }
+            return value;
         }
         
         // 单值：尝试解析为数字，如果失败则保持字符串
@@ -105,6 +112,16 @@ class ConfigManager {
      */
     get(key) {
         return this.config[key] ?? this.defaults[key];
+    }
+
+    /**
+     * CPyMO 的实际字号：fontsize / 240 * 画面高度 * 0.8
+     */
+    fontSize() {
+        const base = Number(this.get('fontsize')) || 16;
+        const imageSize = this.get('imagesize') || [320, 240];
+        const height = imageSize[1] || 240;
+        return Math.max(12, base / 240 * height * 0.8);
     }
 
     /**

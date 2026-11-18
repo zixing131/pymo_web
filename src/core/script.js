@@ -34,15 +34,14 @@ class ScriptParser {
         let scriptData;
         
         try {
-            scriptData = this.engine.gameData.Zip[scriptPath]?.compressed_data;
+            scriptData = this.engine.readFileBytes(scriptPath);
             if (!scriptData) {
-                // 尝试大写
-                scriptData = this.engine.gameData.Zip[`script/${this.scriptName.toUpperCase()}.txt`]?.compressed_data;
+                scriptData = this.engine.readFileBytes(`script/${this.scriptName.toUpperCase()}.txt`);
             }
             // 如果还是找不到，尝试补零（如 "1" -> "01"）
             if (!scriptData && /^\d+$/.test(this.scriptName)) {
                 const paddedName = this.scriptName.padStart(2, '0');
-                scriptData = this.engine.gameData.Zip[`script/${paddedName}.txt`]?.compressed_data;
+                scriptData = this.engine.readFileBytes(`script/${paddedName}.txt`);
                 if (scriptData) {
                     this.scriptName = paddedName;
                 }
@@ -189,6 +188,8 @@ class ScriptParser {
             '#chara_down': () => this.cmd_chara_down(args),
             '#chara_up': () => this.cmd_chara_up(args),
             '#chara_anime': () => this.cmd_chara_anime(args),
+            '#chara_anime_do': () => this.cmd_chara_anime_do(args),
+            '#chara_scale': () => this.cmd_chara_scale(args),
             
             // 特效
             '#flash': () => this.cmd_flash(args),
@@ -238,7 +239,9 @@ class ScriptParser {
             '#textbox': () => this.cmd_textbox(args),
             '#movie': () => this.cmd_movie(args),
             '#anime_on': () => this.cmd_anime_on(args),
-            '#anime_off': () => this.cmd_anime_off(args)
+            '#anime_off': () => this.cmd_anime_off(args),
+            '#lua': () => this.cmd_lua(args),
+            '#intro': () => this.cmd_intro(args)
         };
 
         const handler = handlers[command];
@@ -504,6 +507,12 @@ class ScriptParser {
     }
 
     async cmd_chara_anime(args) {
+        // CPyMO：每条 #chara_anime 只是一组偏移，真正播放在 #chara_anime_do
+        if (args.length <= 2) {
+            this._animeBuf = this._animeBuf || [];
+            this._animeBuf.push([parseFloat(args[0]) || 0, parseFloat(args[1]) || 0]);
+            return;
+        }
         const charaId = args[0];
         const period = parseInt(args[1]) || 100;
         const loopNum = parseInt(args[2]) || 1;
@@ -514,6 +523,34 @@ class ScriptParser {
         }
         
         await this.engine.graphics.animateCharacter(charaId, offsets, period, loopNum);
+    }
+
+    async cmd_chara_anime_do(args) {
+        const charaId = args[0];
+        const period = parseInt(args[1]) || 100;
+        const loops = parseInt(args[2]);
+        const asBg = args[3] === '1' || args[3] === 'bg';
+        const offsets = this._animeBuf || [];
+        this._animeBuf = [];
+        if (loops === 0) return;
+        if (!offsets.length) return;
+        const times = loops < 0 ? 1 : loops;
+        if (asBg || loops < 0) {
+            this.engine.graphics.animateCharacter(charaId, offsets, period, times);
+            return;
+        }
+        await this.engine.graphics.animateCharacter(charaId, offsets, period, times);
+    }
+
+    async cmd_chara_scale(args) {
+        const charaId = args[0];
+        let scale = parseFloat(args[1]);
+        if (!(scale > 0)) scale = 1;
+        await this.engine.graphics.setCharacterScale(charaId, scale);
+        const time = parseFloat(args[2]) || 0;
+        if (time > 0) {
+            await this.engine.sleep(time < 30 ? time * 1000 : time);
+        }
     }
 
     // --- 特效 ---
@@ -771,6 +808,19 @@ class ScriptParser {
 
     async cmd_config() {
         await this.engine.ui.showConfig();
+    }
+
+    async cmd_lua(args) {
+        const code = args.join(',');
+        if (/cpymo\.exit/.test(code)) {
+            this.stop();
+            window.location.href = 'index.html';
+        }
+    }
+
+    async cmd_intro(args) {
+        const text = args.join(',').replace(/\\n/g, ' ');
+        await this.engine.graphics.showMessage(text, null);
     }
 
     cmd_textbox(args) {

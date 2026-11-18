@@ -71,7 +71,7 @@ class GraphicsSystem {
      */
     async loadSystemImages() {
         const config = this.engine.config;
-        const fontSize = config.get('fontsize');
+        const fontSize = config.fontSize();
         
         // 对话框
         this.messageBox = await this.loadImage('system/message.png', this.screenSize[0]);
@@ -94,10 +94,7 @@ class GraphicsSystem {
      */
     async loadImage(path, width = null, height = null) {
         try {
-            let data = this.engine.gameData.Zip[path]?.compressed_data;
-            if (!data) {
-                data = this.engine.gameData.Zip[path.toUpperCase()]?.compressed_data;
-            }
+            let data = this.engine.readFileBytes(path);
             if (!data) {
                 console.warn(`Image not found: ${path}`);
                 return null;
@@ -327,6 +324,7 @@ class GraphicsSystem {
             centerX,
             y: this.bgSize[1] - img.height,
             layer,
+            scale: this._takeScale(charaId),
             visible: true
         };
         
@@ -359,6 +357,7 @@ class GraphicsSystem {
             centerX: pos.centerX,
             y: pos.y,
             layer,
+            scale: this._takeScale(charaId),
             visible: true
         };
         
@@ -370,6 +369,32 @@ class GraphicsSystem {
             chara_visible: true,
             layer
         };
+    }
+
+    _takeScale(charaId) {
+        const key = String(charaId);
+        const pending = this._pendingScale && this._pendingScale[key];
+        if (pending) {
+            delete this._pendingScale[key];
+            return pending;
+        }
+        return 1;
+    }
+
+    /**
+     * #chara_scale。缩放以立绘中心为锚点，和 CPyMO 一致。
+     */
+    async setCharacterScale(charaId, scale) {
+        const key = String(charaId);
+        const value = scale > 0 ? scale : 1;
+        const chara = this.characters[key];
+        if (!chara) {
+            this._pendingScale = this._pendingScale || {};
+            this._pendingScale[key] = value;
+            return;
+        }
+        chara.scale = value;
+        await this.displayCharacters(0);
     }
 
     /**
@@ -500,10 +525,22 @@ class GraphicsSystem {
         
         for (const id of sortedIds) {
             const chara = this.characters[id];
+            const scale = chara.scale > 0 ? chara.scale : 1;
+            let origin = chara.origin;
+            let destSize = null;
+            if (scale !== 1) {
+                const w = chara.img.width * scale;
+                const h = chara.img.height * scale;
+                origin = [
+                    chara.origin[0] + (chara.img.width - w) / 2,
+                    chara.origin[1] + (chara.img.height - h) / 2
+                ];
+                destSize = [w, h];
+            }
             if (chara.mask) {
-                this.finalImg.blit(chara.img, chara.origin, [0, 0], chara.mask);
+                this.finalImg.blit(chara.img, origin, [0, 0], chara.mask, destSize);
             } else {
-                this.finalImg.blit(chara.img, chara.origin);
+                this.finalImg.blit(chara.img, origin, [0, 0], null, destSize);
             }
             this.charaOn = true;
         }
@@ -668,7 +705,7 @@ class GraphicsSystem {
      */
     async showMessage(content, name = null) {
         const config = this.engine.config;
-        const fontSize = config.get('fontsize');
+        const fontSize = config.fontSize();
         const textColor = config.get('textcolor');
         const msgtb = config.get('msgtb');
         const msglr = config.get('msglr');
@@ -977,7 +1014,7 @@ class GraphicsSystem {
         this.messageBox = await this.loadImage(`system/${messagebox}.png`, this.screenSize[0]);
         this.messageBoxMask = await this.loadImage(`system/${messagebox}_mask.png`, this.screenSize[0]);
         
-        const fontSize = this.engine.config.get('fontsize');
+        const fontSize = this.engine.config.fontSize();
         this.nameBox = await this.loadImage(`system/${namebox}.png`, null, fontSize + 12);
         this.nameBoxMask = await this.loadImage(`system/${namebox}_mask.png`, null, fontSize + 12);
     }

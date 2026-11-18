@@ -15,6 +15,15 @@ try {
 
     let nowfocus = undefined;
     let selectedGame = null;
+    let uiActionStamp = 0;
+
+    // 同一次点击会被 onclick、捕获监听和焦点系统各触发一次，这里只认第一次
+    function beginUiAction() {
+        const now = Date.now();
+        if (now - uiActionStamp < 50) return false;
+        uiActionStamp = now;
+        return true;
+    }
 
     // ==================== 游戏操作 ====================
 
@@ -171,20 +180,25 @@ try {
                 
                 for (const res of files) {
                     try {
-                        const gameconfig = res.Zip['gameconfig.txt'];
-                        const configText = new TextDecoder('utf-8').decode(gameconfig.compressed_data);
-                        const config = processGameconfig(configText);
-                        
-                        let gametitle = config["gametitle"] || res.ZipName;
-                        gametitle = gametitle.replace(/\\n/g, '<br>');
-                        
-                        // 获取图标
+                        let gametitle = res.ZipName;
                         let iconUrl = '';
-                        const iconfile = res.Zip["icon.png"];
-                        if (iconfile) {
-                            const blob = new Blob([iconfile.compressed_data], { type: "image/png" });
-                            iconUrl = URL.createObjectURL(blob);
+
+                        if (res.preview) {
+                            gametitle = res.preview.title || gametitle;
+                            if (res.preview.icon) {
+                                iconUrl = URL.createObjectURL(new Blob([res.preview.icon], { type: "image/png" }));
+                            }
+                        } else if (res.Zip && res.Zip['gameconfig.txt']) {
+                            const gameconfig = res.Zip['gameconfig.txt'];
+                            const configText = new TextDecoder('utf-8').decode(gameconfig.compressed_data);
+                            const config = processGameconfig(configText);
+                            gametitle = config["gametitle"] || res.ZipName;
+                            const iconfile = res.Zip["icon.png"];
+                            if (iconfile) {
+                                iconUrl = URL.createObjectURL(new Blob([iconfile.compressed_data], { type: "image/png" }));
+                            }
                         }
+                        gametitle = String(gametitle).replace(/\\n/g, '<br>');
                         
                         cards.push(`
                             <div class="game-card" focusable data-gamename="${res.ZipName}" onclick="handleGameClick(this)">
@@ -264,7 +278,43 @@ try {
         e.target.value = null;
     }
     
-    // 安装 ZIP 文件
+    async function saveGameRecord(zipName, zipBlob, preview) {
+        const DATABASE = 'ZipStore';
+        const VERSION = 2;
+        const OBJECT_STORE = 'files_v2';
+
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DATABASE, VERSION);
+            request.onerror = () => reject(request.error);
+            request.onupgradeneeded = (event) => {
+                const db = request.result;
+                if (event.oldVersion < 1) {
+                    db.createObjectStore('files', { keyPath: 'ZipName' });
+                }
+                if (event.oldVersion < 2) {
+                    if (db.objectStoreNames.contains('files')) {
+                        db.deleteObjectStore('files');
+                    }
+                    db.createObjectStore(OBJECT_STORE, { keyPath: 'ZipName' });
+                }
+            };
+            request.onsuccess = () => {
+                const db = request.result;
+                const transaction = db.transaction(OBJECT_STORE, 'readwrite');
+                const objectStore = transaction.objectStore(OBJECT_STORE);
+                const putRequest = objectStore.put({
+                    ZipName: zipName,
+                    zipBlob: zipBlob,
+                    preview: preview
+                });
+                putRequest.onerror = () => reject(putRequest.error);
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            };
+        });
+    }
+
+    // 安装 ZIP 文件。大包只存原始文件，启动时再按需解开。
     async function installZipFile(file) {
         const applist = document.getElementById('applist');
         const originalContent = applist.innerHTML;
@@ -283,159 +333,47 @@ try {
             const el = applist.querySelector('.loading-status');
             if (el) el.textContent = status;
         };
-        
-        const updateProgress = (progress) => {
-            const el = applist.querySelector('.loading-progress');
-            if (el) el.textContent = progress;
-        };
-        
+
         try {
-            updateStatus(`正在解析 ${file.name}...`);
-            updateProgress('');
-            
-            if (typeof JSZip === 'undefined') {
-                throw new Error('JSZip 库未加载');
-            }
-            
-            updateProgress('解压中...');
-            const zip = await JSZip.loadAsync(file, {
-                onProgress: (metadata) => {
-                    updateProgress(`${metadata.percent.toFixed(0)}%`);
-                }
-            });
-            
-            updateStatus('正在处理文件...');
-            updateProgress('');
-            
-            const fileNames = Object.keys(zip.files);
-            
-            // 找到 gameconfig.txt 所在目录作为根目录
-            let rootPrefix = '';
-            for (const filename of fileNames) {
-                const lowerName = filename.toLowerCase();
-                if (lowerName.endsWith('gameconfig.txt')) {
-                    // 获取 gameconfig.txt 所在的目录
-                    const lastSlash = filename.lastIndexOf('/');
-                    if (lastSlash > 0) {
-                        rootPrefix = filename.substring(0, lastSlash + 1);
-                        console.log(`检测到游戏根目录: ${rootPrefix}`);
-                    }
-                    break;
-                }
-            }
-            
-            const directory = {};
-            let processed = 0;
-            
-            for (const filename of fileNames) {
-                const zipEntry = zip.files[filename];
-                if (!zipEntry.dir) {
-                    try {
-                        // 去掉根目录前缀
-                        let targetName = filename;
-                        if (rootPrefix && filename.startsWith(rootPrefix)) {
-                            targetName = filename.substring(rootPrefix.length);
-                        }
-                        
-                        // 跳过根目录外的文件
-                        if (rootPrefix && !filename.startsWith(rootPrefix)) {
-                            continue;
-                        }
-                        
-                        // 跳过空文件名
-                        if (!targetName) continue;
-                        
-                        const data = await zipEntry.async('uint8array');
-                        directory[targetName] = {
-                            compression_method: 0,
-                            compressed_data: data,
-                            uncompressed_len: data.length
-                        };
-                    } catch (err) {
-                        console.warn(`跳过文件: ${filename}`, err);
-                    }
-                }
-                processed++;
-                if (processed % 50 === 0) {
-                    updateProgress(`${processed}/${fileNames.length} 文件`);
-                    await new Promise(r => setTimeout(r, 0));
-                }
-            }
-            
-            if (Object.keys(directory).length === 0) {
-                throw new Error('ZIP 文件中没有可读取的文件');
-            }
-            
-            // 检查是否包含 gameconfig.txt
-            if (!directory['gameconfig.txt']) {
+            updateStatus(`正在检查 ${file.name}...`);
+            const entries = await inspectZipBlob(file);
+            const rooted = zipGameRoot(entries);
+            if (!rooted.config) {
                 throw new Error('未找到 gameconfig.txt，请确认是有效的 PyMO 游戏包');
             }
-            
+
+            updateStatus('正在读取游戏信息...');
+            const configBytes = await extractZipEntry(file, rooted.config);
+            const config = processGameconfig(new TextDecoder('utf-8').decode(configBytes));
+            let iconBytes = null;
+            const iconEntry = entries.find((entry) => {
+                if (entry.dir || zipIsJunk(entry.name)) return false;
+                const name = rooted.root && entry.name.indexOf(rooted.root) === 0
+                    ? entry.name.slice(rooted.root.length)
+                    : entry.name;
+                return name.toLowerCase() === 'icon.png';
+            });
+            if (iconEntry) {
+                try {
+                    iconBytes = await extractZipEntry(file, iconEntry);
+                } catch (err) {
+                    console.warn('图标读取失败', err);
+                }
+            }
+
             updateStatus('正在保存到数据库...');
-            updateProgress('');
-            
-            await installGameWithParsedData(file.name, directory);
-            
+            await saveGameRecord(file.name, file, {
+                title: config.gametitle || file.name,
+                icon: iconBytes
+            });
+
             showDialog("提示", file.name + " 安装成功！");
             refreshGameList();
-            
         } catch (err) {
             console.error('Install error:', err);
             applist.innerHTML = originalContent;
-            
-            // 检查是否是加密文件
-            if (err.message && err.message.includes('Encrypted')) {
-                showDialog("提示", 
-                    "此 ZIP 文件已加密，无法直接安装。\n\n" +
-                    "请先用解压软件（如 7-Zip、WinRAR）解压，\n" +
-                    "然后重新打包为无密码的 ZIP 文件再上传。"
-                );
-                return;
-            }
-            
             showDialog("提示", file.name + " 安装失败！\n" + (err.message || err));
         }
-    }
-    
-    // 使用已解析的数据安装游戏
-    async function installGameWithParsedData(zipName, directory) {
-        // 打开数据库
-        const DATABASE = 'ZipStore';
-        const VERSION = 2;
-        const OBJECT_STORE = 'files_v2';
-        
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(DATABASE, VERSION);
-            
-            request.onerror = () => reject(request.error);
-            
-            request.onupgradeneeded = (event) => {
-                const db = request.result;
-                if (event.oldVersion < 1) {
-                    db.createObjectStore('files', { keyPath: 'ZipName' });
-                }
-                if (event.oldVersion < 2) {
-                    if (db.objectStoreNames.contains('files')) {
-                        db.deleteObjectStore('files');
-                    }
-                    db.createObjectStore(OBJECT_STORE, { keyPath: 'ZipName' });
-                }
-            };
-            
-            request.onsuccess = () => {
-                const db = request.result;
-                const transaction = db.transaction(OBJECT_STORE, 'readwrite');
-                const objectStore = transaction.objectStore(OBJECT_STORE);
-                
-                const putRequest = objectStore.put({
-                    ZipName: zipName,
-                    Zip: directory
-                });
-                
-                putRequest.onerror = () => reject(putRequest.error);
-                transaction.oncomplete = () => resolve();
-            };
-        });
     }
 
     // ==================== 右键菜单 ====================
@@ -516,42 +454,28 @@ try {
                     if (e) {
                         e.preventDefault();
                         e.stopPropagation();
-                        e.stopImmediatePropagation();
                     }
+                    if (!beginUiAction()) return false;
                     try {
                         closeMenu();
-                        if (mainmenulist[index] && mainmenulist[index][2] && typeof mainmenulist[index][2] === 'function') {
+                        if (mainmenulist[index] && typeof mainmenulist[index][2] === 'function') {
                             mainmenulist[index][2]();
-                        } else {
-                            console.error(`[loadMenu] Invalid callback for menu item ${index}`);
                         }
                     } catch (err) {
                         console.error('[loadMenu] Error executing menu item callback:', err);
                     }
                     return false;
                 };
-                
-                // 使用 onclick 属性（更兼容老版本浏览器）
-                menuItem.onclick = handleMenuClick;
-                
-                // 点击事件（捕获阶段）
-                menuItem.addEventListener('click', handleMenuClick, true);
-                // 触摸开始事件（KaiOS 兼容）
-                menuItem.addEventListener('touchstart', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleMenuClick(e);
-                }, true);
-                // 触摸结束事件（KaiOS 兼容）
-                menuItem.addEventListener('touchend', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleMenuClick(e);
-                }, true);
-                // 鼠标按下事件（备用）
-                menuItem.addEventListener('mousedown', function(e) {
-                    // 不阻止，让点击事件正常触发
-                }, true);
+
+                menuItem.addEventListener('click', handleMenuClick);
+                menuItem.addEventListener('mouseenter', function() {
+                    menuitems.querySelectorAll('.menuitem').forEach((el) => {
+                        el.classList.remove('focus');
+                        el.removeAttribute('focused');
+                    });
+                    menuItem.classList.add('focus');
+                    menuItem.setAttribute('focused', '');
+                });
             });
         } catch (err) {
             console.error('[loadMenu] Error loading menu:', err);
@@ -865,6 +789,7 @@ try {
     // ==================== 软键事件 ====================
 
     function softleft() {
+        if (!beginUiAction()) return;
         try {
             // 优先检查对话框
             const alertDialog = document.getElementById("alertDialog");
@@ -917,6 +842,7 @@ try {
     }
 
     function softcenter() {
+        if (!beginUiAction()) return;
         const alertDialog = document.getElementById("alertDialog");
         if (alertDialog.style.display !== "none") {
             // 在对话框显示时，中键（OK）应该是确认
@@ -947,6 +873,7 @@ try {
     }
 
     function softright() {
+        if (!beginUiAction()) return;
         try {
             // 优先检查对话框
             const alertDialog = document.getElementById("alertDialog");
@@ -1003,25 +930,7 @@ try {
                         // 触发菜单项点击
                         e.preventDefault();
                         e.stopPropagation();
-                        e.stopImmediatePropagation();
-                        try {
-                            // 优先使用 onclick 属性
-                            if (focusedItem.onclick) {
-                                focusedItem.onclick();
-                            } else {
-                                // 如果没有 onclick，直接调用回调
-                                const index = parseInt(focusedItem.dataset.index);
-                                if (!isNaN(index) && mainmenulist && mainmenulist[index]) {
-                                    closeMenu();
-                                    const callback = mainmenulist[index][2];
-                                    if (callback && typeof callback === 'function') {
-                                        callback();
-                                    }
-                                }
-                            }
-                        } catch (err) {
-                            console.error('[handleKeydown] Error executing menu item:', err);
-                        }
+                        focusedItem.click();
                         return false;
                     case 'ArrowDown':
                     case 40: // Down arrow keyCode
@@ -1089,13 +998,16 @@ try {
                 softcenter();
                 break;
             case 'Escape':
-        case 'Backspace': 
+        case 'Backspace':
             case 27: // Escape keyCode
             case 8: // Backspace keyCode
                 const menu = document.getElementById("menu");
                 const alertDialog = document.getElementById("alertDialog");
-                if (menu.style.display === "flex" || alertDialog.style.display !== "none") {
-                    softright();
+                if (alertDialog.style.display !== "none") {
+                    closeDialog();
+                    e.preventDefault();
+                } else if (menu.style.display === "flex") {
+                    closeMenu();
                     e.preventDefault();
                 }
             break;
@@ -1134,21 +1046,9 @@ try {
         const softkeyright = document.getElementById('softkeyright');
         const softkeycenter = document.getElementById('softkeycenter');
         
-        if (softkeyleft) {
-            softkeyleft.onclick = softleft;
-            softkeyleft.ontouchstart = softleft; // 触摸事件
-            softkeyleft.addEventListener('click', softleft, true); // 捕获阶段
-        }
-        if (softkeyright) {
-            softkeyright.onclick = softright;
-            softkeyright.ontouchstart = softright; // 触摸事件
-            softkeyright.addEventListener('click', softright, true); // 捕获阶段
-        }
-        if (softkeycenter) {
-            softkeycenter.onclick = softcenter;
-            softkeycenter.ontouchstart = softcenter; // 触摸事件
-            softkeycenter.addEventListener('click', softcenter, true); // 捕获阶段
-        }
+        if (softkeyleft) softkeyleft.addEventListener('click', softleft);
+        if (softkeyright) softkeyright.addEventListener('click', softright);
+        if (softkeycenter) softkeycenter.addEventListener('click', softcenter);
         
         // 对话框按钮
         document.getElementById('alert-confirm')?.addEventListener('click', () => {

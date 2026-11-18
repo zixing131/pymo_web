@@ -281,3 +281,158 @@ function ZipFile(buffer, extract) {
 
 }
 
+function zipNormalizeName(name) {
+  return String(name || '').replace(/\\/g, '/');
+}
+
+function zipIsJunk(name) {
+  var parts = zipNormalizeName(name).split('/');
+  if (parts[0] === '__MACOSX') return true;
+  for (var i = 0; i < parts.length; i++) {
+    if (parts[i].indexOf('._') === 0 || parts[i] === '.DS_Store') return true;
+  }
+  return false;
+}
+
+function readRange(blob, start, end) {
+  var part = blob.slice(start, end);
+  if (part && typeof part.arrayBuffer === 'function') return part.arrayBuffer();
+  return Promise.resolve(part);
+}
+
+function inflateRawBytes(bytes, uncompressedLen) {
+  if (typeof DecompressionStream !== 'undefined') {
+    var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return new Response(stream).arrayBuffer().then(function(buf) {
+      return new Uint8Array(buf);
+    });
+  }
+  return Promise.resolve(inflate(bytes, uncompressedLen));
+}
+
+async function inspectZipBlob(blob) {
+  var size = blob.size;
+  if (!size) throw new Error('ZIP 文件是空的');
+  var tailSize = Math.min(size, 4 * 1024 * 1024);
+  var tailStart = size - tailSize;
+  var tailBuf = await readRange(blob, tailStart, size);
+  var tail = new Uint8Array(tailBuf);
+  var view = new DataView(tailBuf);
+  var eocd = -1;
+  for (var i = tail.length - 22; i >= 0; i--) {
+    if (tail[i] === 0x50 && view.getUint32(i, true) === 0x06054b50) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) throw new Error('不是有效的 ZIP 文件');
+  var entries = view.getUint16(eocd + 8, true);
+  var cdSize = view.getUint32(eocd + 12, true);
+  var cdOff = view.getUint32(eocd + 16, true);
+  if (entries === 0xffff || cdOff === 0xffffffff || cdSize === 0xffffffff) {
+    throw new Error('这个包使用了 ZIP64，当前播放器读不了');
+  }
+  var cdBuf;
+  if (cdOff >= tailStart && cdOff + cdSize <= size) {
+    cdBuf = tailBuf.slice(cdOff - tailStart, cdOff - tailStart + cdSize);
+  } else {
+    cdBuf = await readRange(blob, cdOff, cdOff + cdSize);
+  }
+  var cd = new DataView(cdBuf);
+  var bytes = new Uint8Array(cdBuf);
+  var pos = 0;
+  var list = [];
+  for (var n = 0; n < entries; n++) {
+    if (pos + 46 > cdBuf.byteLength || cd.getUint32(pos, true) !== 0x02014b50) {
+      throw new Error('ZIP 目录损坏');
+    }
+    var method = cd.getUint16(pos + 10, true);
+    var compSize = cd.getUint32(pos + 20, true);
+    var uncompSize = cd.getUint32(pos + 24, true);
+    var nameLen = cd.getUint16(pos + 28, true);
+    var extraLen = cd.getUint16(pos + 30, true);
+    var commentLen = cd.getUint16(pos + 32, true);
+    var localOff = cd.getUint32(pos + 42, true);
+    pos += 46;
+    var name = new TextDecoder('utf-8').decode(bytes.subarray(pos, pos + nameLen));
+    pos += nameLen + extraLen + commentLen;
+    list.push({
+      name: zipNormalizeName(name),
+      method: method,
+      compSize: compSize,
+      uncompSize: uncompSize,
+      localOff: localOff,
+      dir: zipNormalizeName(name).endsWith('/')
+    });
+  }
+  return list;
+}
+
+async function extractZipEntry(blob, entry) {
+  if (entry.dir || entry.compSize === 0 && entry.uncompSize === 0) {
+    return new Uint8Array(0);
+  }
+  var headBuf = await readRange(blob, entry.localOff, entry.localOff + 30);
+  var head = new DataView(headBuf);
+  if (head.getUint32(0, true) !== 0x04034b50) {
+    throw new Error('ZIP 本地文件头损坏: ' + entry.name);
+  }
+  var nameLen = head.getUint16(26, true);
+  var extraLen = head.getUint16(28, true);
+  var dataOff = entry.localOff + 30 + nameLen + extraLen;
+  var compBuf = await readRange(blob, dataOff, dataOff + entry.compSize);
+  var comp = new Uint8Array(compBuf);
+  if (entry.method === 0) return comp;
+  if (entry.method === 8) return inflateRawBytes(comp, entry.uncompSize);
+  throw new Error('不支持的压缩方式 ' + entry.method + ': ' + entry.name);
+}
+
+function zipGameRoot(entries) {
+  var configs = [];
+  for (var i = 0; i < entries.length; i++) {
+    var name = entries[i].name;
+    if (entries[i].dir || zipIsJunk(name)) continue;
+    if (name.toLowerCase() === 'gameconfig.txt' || name.toLowerCase().endsWith('/gameconfig.txt')) {
+      configs.push(entries[i]);
+    }
+  }
+  configs.sort(function(a, b) {
+    return a.name.split('/').length - b.name.split('/').length;
+  });
+  if (!configs.length) return { root: '', config: null };
+  var config = configs[0];
+  var slash = config.name.lastIndexOf('/');
+  return { root: slash >= 0 ? config.name.slice(0, slash + 1) : '', config: config };
+}
+
+async function expandGameZip(blob, onProgress) {
+  var entries = await inspectZipBlob(blob);
+  var rooted = zipGameRoot(entries);
+  if (!rooted.config) throw new Error('未找到 gameconfig.txt，请确认是有效的 PyMO 游戏包');
+  var directory = Object.create(null);
+  var done = 0;
+  var total = 0;
+  for (var i = 0; i < entries.length; i++) {
+    if (!entries[i].dir && !zipIsJunk(entries[i].name)) total++;
+  }
+  for (var j = 0; j < entries.length; j++) {
+    var entry = entries[j];
+    if (entry.dir || zipIsJunk(entry.name)) continue;
+    var target = entry.name;
+    if (rooted.root && target.indexOf(rooted.root) === 0) target = target.slice(rooted.root.length);
+    if (!target) continue;
+    var data = await extractZipEntry(blob, entry);
+    var record = { compression_method: 0, compressed_data: data, uncompressed_len: data.length };
+    directory[target] = record;
+    var lower = target.toLowerCase();
+    if (lower !== target) directory[lower] = record;
+    done++;
+    if (onProgress && done % 40 === 0) onProgress(done, total);
+    if (done % 30 === 0) await new Promise(function(resolve) { setTimeout(resolve, 0); });
+  }
+  if (!directory['gameconfig.txt']) {
+    throw new Error('未找到 gameconfig.txt，请确认是有效的 PyMO 游戏包');
+  }
+  return directory;
+}
+

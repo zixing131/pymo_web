@@ -255,8 +255,12 @@ function setupCanvasScaling() {
         if (screenRotation.enabled) {
             const rotation = screenRotation.direction === 'left' ? -90 : 90;
             transform = `rotate(${rotation}deg) scale(${scale})`;
+            canvas.style.width = '';
+            canvas.style.height = '';
         } else {
-            transform = `scale(${scale})`;
+            // 用真实宽高而不是 scale，鼠标坐标才能和画面一一对应
+            canvas.style.width = Math.max(1, Math.floor(canvasWidth * scale)) + 'px';
+            canvas.style.height = Math.max(1, Math.floor(canvasHeight * scale)) + 'px';
         }
         
         canvas.style.transform = transform;

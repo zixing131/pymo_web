@@ -100,7 +100,7 @@ class AudioSystem {
             
             // 从 ZIP 直接加载
             const path = `${folder}/${filename}${format}`;
-            const fileData = this.engine.gameData.Zip[path]?.compressed_data;
+            const fileData = this.engine.readFileBytes(path);
             
             if (!fileData) {
                 console.warn(`Audio not found: ${path}`);
