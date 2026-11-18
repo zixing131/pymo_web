@@ -5,3 +5,4 @@ package-lock.json
 /pymoweb-dist-kaios
 /pymo-dist-kaios
 /pymo_web-dist-kaios
+.DS_Store
